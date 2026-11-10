@@ -12,8 +12,6 @@ type Policy = {
   allowed_merchants: string[];
   restricted_categories: string[];
   human_approval_required: boolean;
-  approval_threshold: number;
-  us_only: boolean;
 };
 
 type PolicyEvent = {

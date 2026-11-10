@@ -14,8 +14,6 @@ DEFAULT_POLICY: dict = {
     "allowed_merchants": [],
     "restricted_categories": ["digital currencies", "software subscriptions", "weapons"],
     "human_approval_required": True,
-    "approval_threshold": 50.0,
-    "us_only": True,
 }
 
 

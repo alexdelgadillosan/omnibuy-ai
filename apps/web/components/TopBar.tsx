@@ -2,15 +2,27 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function TopBar() {
   const router = useRouter();
+  const searchRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [authorized, setAuthorized] = useState(0);
   const [pending, setPending] = useState(0);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        searchRef.current?.focus();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   useEffect(() => {
     fetch(`${API}/api/decision-proofs`)
@@ -34,9 +46,10 @@ export default function TopBar() {
       <form className="search" onSubmit={submit}>
         <span>⌕</span>
         <input
+          ref={searchRef}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search agents, orders, policy rules..."
+          placeholder="Search decision proofs by ID, request or status..."
           aria-label="Search decision proofs"
         />
         <kbd>⌘ K</kbd>

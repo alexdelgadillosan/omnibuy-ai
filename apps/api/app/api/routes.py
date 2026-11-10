@@ -47,8 +47,6 @@ class PolicySettingsInput(BaseModel):
     allowed_merchants: list[str] = Field(default_factory=list, max_length=100)
     restricted_categories: list[str] = Field(default_factory=list, max_length=100)
     human_approval_required: Literal[True] = True
-    approval_threshold: float = Field(ge=0, le=100000)
-    us_only: bool = True
 
     @field_validator("allowed_merchants", "restricted_categories")
     @classmethod

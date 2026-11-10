@@ -1,20 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const usd = (value: number | string) =>
   `$${Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export default function Proofs() {
+export default function ProofsPage() {
+  return (
+    <Suspense fallback={<div className="content dp-list-page" />}>
+      <Proofs />
+    </Suspense>
+  );
+}
+
+function Proofs() {
+  const params = useSearchParams();
   const [items, setItems] = useState<any[]>([]);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    setQuery(new URLSearchParams(window.location.search).get("q") || "");
+    setQuery(params.get("q") || "");
+  }, [params]);
+
+  useEffect(() => {
     fetch(`${API}/api/decision-proofs`)
       .then(async (response) => {
         if (!response.ok) throw new Error("Could not load Decision Proofs");

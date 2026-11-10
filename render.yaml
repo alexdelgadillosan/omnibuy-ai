@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: omnibuy-api
+    runtime: python
+    plan: starter
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --app-dir apps/api --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    disk:
+      name: omnibuy-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: OMNIBUY_DATABASE_URL
+        value: sqlite:////var/data/omnibuy.db
+      - key: CHANNEL3_API_KEY
+        sync: false
+      - key: CHANNEL3_BASE_URL
+        value: https://api.trychannel3.com/v1
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_ENV
+        value: sandbox
+      - key: PAYPAL_BASE_URL
+        value: https://api-m.sandbox.paypal.com
+      - key: OMNIBUY_ALLOWED_ORIGINS
+        sync: false
+      - key: OMNIBUY_PUBLIC_URL
+        sync: false
+
+  - type: web
+    name: omnibuy-web
+    runtime: node
+    plan: starter
+    region: oregon
+    rootDir: apps/web
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start -- -p $PORT
+    envVars:
+      - key: NODE_VERSION
+        value: 22.11.0
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
