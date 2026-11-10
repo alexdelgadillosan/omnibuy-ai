@@ -8,8 +8,14 @@ export const metadata = { title: "OmniBuy AI — Verified Autonomous Commerce", 
 
 export default function Layout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              '(function(){try{if(localStorage.getItem("omnibuy-theme")==="light"){document.documentElement.setAttribute("data-theme","light")}}catch(e){}})();',
+          }}
+        />
         <input type="checkbox" id="nav-toggle" className="nav-toggle" aria-label="Toggle navigation" />
         <label htmlFor="nav-toggle" className="nav-scrim" aria-hidden="true" />
         <NavController />
