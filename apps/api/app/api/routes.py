@@ -15,9 +15,30 @@ class ProposalInput(PurchaseRequest):
     candidates: list[Product] | None = Field(default=None, max_length=100)
 
 
+class PolicySimulation(BaseModel):
+    amount: float = Field(gt=0)
+    currency: str = "USD"
+    category: str = "general"
+    budget: float = Field(default=900, gt=0)
+    max_item_price: float = Field(default=600, gt=0)
+
+
 @router.get("/health")
 async def health() -> dict:
     return {"ok": True, "service": "omnibuy-ai", "payments": "paypal-sandbox", "discovery": "channel3"}
+
+
+@router.post("/policy/simulate")
+async def simulate_policy(request: PolicySimulation) -> dict:
+    restricted = {"digital currencies", "software subscriptions", "weapons"}
+    checks = [
+        {"name": "budget_cap", "passed": request.amount <= request.budget, "detail": f"${request.amount:.2f} vs ${request.budget:.2f} session cap."},
+        {"name": "single_item_ceiling", "passed": request.amount <= request.max_item_price, "detail": f"${request.amount:.2f} vs ${request.max_item_price:.2f} item ceiling."},
+        {"name": "currency", "passed": request.currency.upper() == "USD", "detail": "USD-only settlement policy."},
+        {"name": "restricted_category", "passed": request.category.lower() not in restricted, "detail": "Category is permitted." if request.category.lower() not in restricted else "Category is restricted."},
+        {"name": "human_approval", "passed": False, "detail": "Human approval is mandatory before payment."},
+    ]
+    return {"passed": all(check["passed"] for check in checks[:-1]), "checks": checks, "status": "BLOCKED" if not all(check["passed"] for check in checks[:-1]) else "AWAITING_APPROVAL"}
 
 
 @router.post("/proposals")
