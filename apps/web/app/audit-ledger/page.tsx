@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function AuditLedger(){return <div className="content placeholder"><label>AUDIT LEDGER</label><h1>Transaction history</h1><p>Verified proposals, approvals, PayPal order IDs, captures and payment state transitions will be recorded here.</p><div className="empty"><span>▤</span><div><b>No transactions recorded yet</b><p>Complete a PayPal Sandbox flow to create the first audit record.</p></div></div><Link href="/workspace" className="run">Open Agent Workspace →</Link></div>}
