@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from app.integrations.channel3 import DiscoveryUnavailable, search_channel3
-from app.optimization.engine import optimize
+from app.agents.workflow import run_workflow
 from app.policies.engine import verify_policy
 from app.schemas.products import Product, PurchaseRequest
 from app.services.proof import create_decision_proof
@@ -28,9 +28,11 @@ async def create_proposal(request: ProposalInput) -> dict:
         raise HTTPException(status_code=503, detail=str(error)) from error
     except Exception as error:
         raise HTTPException(status_code=502, detail=f"Product discovery failed: {error}") from error
-    result = optimize(request, candidates)
-    policy = verify_policy(request, result)
+    workflow = run_workflow(request, candidates)
+    result = workflow["optimization"]
+    policy = workflow["policy"]
     proof = create_decision_proof(request, result, policy)
+    proof["workflow_events"] = workflow["events"]
     save_proof(proof)
     return {"proof": proof, "state": "AWAITING_APPROVAL" if policy.passed else "BLOCKED"}
 

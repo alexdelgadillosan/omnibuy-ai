@@ -17,6 +17,7 @@ class PolicyResult(BaseModel):
 def verify_policy(request: PurchaseRequest, result: OptimizationResult) -> PolicyResult:
     checks = [
         PolicyCheck(name="currency", passed=request.currency.upper() == "USD", detail="Checkout currency must be USD."),
+        PolicyCheck(name="non_empty_cart", passed=bool(result.selected), detail="At least one verified product must be selected." if result.selected else "No compliant product combination was found."),
         PolicyCheck(name="budget_cap", passed=result.total <= request.budget, detail=f"${result.total:.2f} is within the ${request.budget:.2f} budget."),
         PolicyCheck(name="required_categories", passed=not result.missing_categories, detail="All required categories are represented." if not result.missing_categories else f"Missing: {', '.join(result.missing_categories)}."),
         PolicyCheck(name="restricted_categories", passed=all(p.category.lower() not in {x.lower() for x in request.restricted_categories} for p in result.selected), detail="No restricted categories selected."),

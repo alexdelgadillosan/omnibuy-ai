@@ -20,7 +20,9 @@ def test_policy_blocks_budget_violation_even_if_result_is_malformed():
     request = PurchaseRequest(request="office", budget=Decimal("900"), required_categories=[])
     result = optimize(request, [product("chair", "chair", "950")])
     assert result.selected == []
-    assert verify_policy(request, result).passed is True
+    policy = verify_policy(request, result)
+    assert policy.passed is False
+    assert any(check.name == "non_empty_cart" and not check.passed for check in policy.checks)
 
 
 def test_policy_requires_approval():
