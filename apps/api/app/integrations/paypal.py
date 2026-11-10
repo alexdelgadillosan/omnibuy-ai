@@ -22,7 +22,7 @@ async def create_order(decision_id: str, amount: str, currency: str = "USD") -> 
     token = await _token()
     settings = get_settings()
     async with httpx.AsyncClient(timeout=20) as client:
-        response = await client.post(f"{settings.paypal_base_url}/v2/checkout/orders", headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "PayPal-Request-Id": f"omnibuy-{decision_id}"}, json={"intent": "CAPTURE", "purchase_units": [{"reference_id": decision_id, "custom_id": decision_id, "amount": {"currency_code": currency, "value": amount}}]})
+        response = await client.post(f"{settings.paypal_base_url}/v2/checkout/orders", headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "PayPal-Request-Id": f"omnibuy-{decision_id}"}, json={"intent": "CAPTURE", "purchase_units": [{"reference_id": decision_id, "custom_id": decision_id, "amount": {"currency_code": currency, "value": amount}}], "application_context": {"brand_name": "OmniBuy AI", "user_action": "PAY_NOW", "return_url": f"{settings.omnibuy_public_url}/checkout", "cancel_url": f"{settings.omnibuy_public_url}/workspace"}})
         if response.status_code >= 400:
             raise PayPalError(f"PayPal order creation failed: {response.status_code} {response.text[:200]}")
         return response.json()

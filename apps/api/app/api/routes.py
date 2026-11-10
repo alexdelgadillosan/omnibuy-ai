@@ -5,7 +5,7 @@ from app.optimization.engine import optimize
 from app.policies.engine import verify_policy
 from app.schemas.products import Product, PurchaseRequest
 from app.services.proof import create_decision_proof
-from app.persistence.db import approve_proof, get_proof, save_proof
+from app.persistence.db import approve_proof, get_proof, list_proofs, record_paypal_capture, record_paypal_order, save_proof
 from app.integrations.paypal import PayPalError, capture_order, create_order
 
 router = APIRouter(prefix="/api")
@@ -43,6 +43,11 @@ async def decision_proof(decision_id: str) -> dict:
     return proof
 
 
+@router.get("/decision-proofs")
+async def decision_proofs() -> list[dict]:
+    return list_proofs()
+
+
 @router.post("/decision-proofs/{decision_id}/approve")
 async def approve_decision(decision_id: str) -> dict:
     proof = approve_proof(decision_id)
@@ -60,7 +65,10 @@ async def paypal_order(decision_id: str) -> dict:
         order = await create_order(decision_id, proof["optimization"]["total"], proof["requirements"]["currency"])
     except PayPalError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
-    return {"decision_id": decision_id, "paypal_order_id": order.get("id"), "status": order.get("status"), "links": order.get("links", [])}
+    order_id = order.get("id")
+    if not order_id or not record_paypal_order(decision_id, order_id):
+        raise HTTPException(status_code=500, detail="PayPal order was created but could not be persisted safely")
+    return {"decision_id": decision_id, "paypal_order_id": order_id, "status": order.get("status"), "links": order.get("links", [])}
 
 
 @router.post("/paypal/orders/{order_id}/capture")
@@ -71,4 +79,8 @@ async def paypal_capture(order_id: str) -> dict:
         raise HTTPException(status_code=502, detail=str(error)) from error
     if result.get("status") != "COMPLETED":
         raise HTTPException(status_code=502, detail="PayPal did not return a completed capture")
-    return {"paypal_order_id": order_id, "status": result.get("status"), "capture": result.get("purchase_units", [])}
+    captures = result.get("purchase_units", [])
+    capture_id = captures[0].get("payments", {}).get("captures", [{}])[0].get("id") if captures else None
+    if not capture_id or not record_paypal_capture(order_id, capture_id):
+        raise HTTPException(status_code=500, detail="PayPal capture completed but could not be persisted safely")
+    return {"paypal_order_id": order_id, "paypal_capture_id": capture_id, "status": result.get("status"), "capture": captures}

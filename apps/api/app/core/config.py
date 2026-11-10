@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     paypal_base_url: str = "https://api-m.sandbox.paypal.com"
     omnibuy_database_url: str = "sqlite:///./omnibuy.db"
     omnibuy_allowed_origins: str = "http://localhost:3000"
+    omnibuy_public_url: str = "http://localhost:3000"
 
 
 @lru_cache
