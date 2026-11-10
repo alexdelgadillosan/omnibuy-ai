@@ -31,7 +31,20 @@ async def search_channel3(query: str, currency: str = "USD") -> list[Product]:
             brand = (item.get("brands") or [{}])[0].get("name")
             category = (item.get("category") or {}).get("title", "uncategorized")
             image = next((image.get("cleaned_url") or image.get("url") for image in item.get("images", []) if image.get("is_main_image")), None)
-            products.append(Product(id=str(item["id"]), title=item["title"], brand=brand, merchant=offer.get("domain", "unknown"), price=Decimal(str(price["price"])), currency=price.get("currency", currency), category=category, specifications={"key_features": item.get("key_features") or [], "structured_attributes": item.get("structured_attributes") or {}}, image_url=image, product_url=offer["url"], availability="in_stock" if offer.get("availability") == "InStock" else "out_of_stock", source="channel3"))
+            ratings = item.get("ratings") or {}
+            rating_count = int(ratings.get("count") or 0)
+            rating_value = float(ratings.get("value") or 0)
+            # Deterministic quality signal: Bayesian-shrunk buyer rating. Unrated
+            # products receive the neutral prior (70) instead of an invented score.
+            quality_score = round((rating_value / 5 * 100 * rating_count + 70 * 5) / (rating_count + 5), 2) if rating_count > 0 and rating_value > 0 else 70.0
+            specifications = {
+                "key_features": item.get("key_features") or [],
+                "structured_attributes": item.get("structured_attributes") or {},
+                "quality_score": quality_score,
+                "rating_value": round(rating_value, 2) if rating_count > 0 else None,
+                "rating_count": rating_count,
+            }
+            products.append(Product(id=str(item["id"]), title=item["title"], brand=brand, merchant=offer.get("domain", "unknown"), price=Decimal(str(price["price"])), currency=price.get("currency", currency), category=category, specifications=specifications, image_url=image, product_url=offer["url"], availability="in_stock" if offer.get("availability") == "InStock" else "out_of_stock", source="channel3"))
         except (KeyError, TypeError, ValueError):
             continue
     return products
