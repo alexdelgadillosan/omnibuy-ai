@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_model: str = "gpt-4.1-mini"
     channel3_api_key: str = ""
-    channel3_base_url: str = ""
+    channel3_base_url: str = "https://api.trychannel3.com/v1"
     paypal_client_id: str = ""
     paypal_client_secret: str = ""
     paypal_env: str = "sandbox"

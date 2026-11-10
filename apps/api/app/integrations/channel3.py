@@ -16,13 +16,22 @@ async def search_channel3(query: str, currency: str = "USD") -> list[Product]:
     # The URL and payload are configured rather than guessed. Confirm the exact
     # endpoint from the account's official Channel3 API documentation.
     async with httpx.AsyncClient(timeout=20) as client:
-        response = await client.post(f"{settings.channel3_base_url.rstrip('/')}/search", headers={"Authorization": f"Bearer {settings.channel3_api_key}"}, json={"query": query, "currency": currency})
+        response = await client.post(f"{settings.channel3_base_url.rstrip('/')}/search", headers={"x-api-key": settings.channel3_api_key, "Content-Type": "application/json"}, json={"query": query, "limit": 20})
         response.raise_for_status()
         body: dict[str, Any] = response.json()
     products: list[Product] = []
     for item in body.get("products", body.get("results", [])):
         try:
-            products.append(Product(id=str(item["id"]), title=item["title"], brand=item.get("brand"), merchant=item["merchant"], price=Decimal(str(item["price"])), currency=item.get("currency", currency), category=item.get("category", "uncategorized"), specifications=item.get("specifications", {}), image_url=item.get("image_url"), product_url=item["product_url"], availability="in_stock" if item.get("availability") in (True, "in_stock", "IN_STOCK") else "unknown", source="channel3"))
+            offer = next((candidate for candidate in item.get("offers", []) if candidate.get("price", {}).get("currency") == currency and candidate.get("availability") == "InStock"), None)
+            if offer is None and item.get("offers"):
+                offer = item["offers"][0]
+            if not offer:
+                continue
+            price = offer.get("price", {})
+            brand = (item.get("brands") or [{}])[0].get("name")
+            category = (item.get("category") or {}).get("title", "uncategorized")
+            image = next((image.get("cleaned_url") or image.get("url") for image in item.get("images", []) if image.get("is_main_image")), None)
+            products.append(Product(id=str(item["id"]), title=item["title"], brand=brand, merchant=offer.get("domain", "unknown"), price=Decimal(str(price["price"])), currency=price.get("currency", currency), category=category, specifications={"key_features": item.get("key_features") or [], "structured_attributes": item.get("structured_attributes") or {}}, image_url=image, product_url=offer["url"], availability="in_stock" if offer.get("availability") == "InStock" else "out_of_stock", source="channel3"))
         except (KeyError, TypeError, ValueError):
             continue
     return products
