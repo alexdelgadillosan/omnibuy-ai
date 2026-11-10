@@ -37,6 +37,17 @@ async def create_proposal(request: ProposalInput) -> dict:
     return {"proof": proof, "state": "AWAITING_APPROVAL" if policy.passed else "BLOCKED"}
 
 
+@router.get("/discovery")
+async def discovery(query: str = "popular products", currency: str = "USD") -> dict:
+    try:
+        products = await search_channel3(query, currency)
+    except DiscoveryUnavailable as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(status_code=502, detail=f"Product discovery failed: {error}") from error
+    return {"query": query, "products": [product.model_dump(mode="json") for product in products], "count": len(products)}
+
+
 @router.get("/decision-proofs/{decision_id}")
 async def decision_proof(decision_id: str) -> dict:
     proof = get_proof(decision_id)
