@@ -5,7 +5,7 @@ from app.agents.workflow import run_workflow
 from app.policies.engine import verify_policy
 from app.schemas.products import Product, PurchaseRequest
 from app.services.proof import create_decision_proof
-from app.persistence.db import approve_proof, get_proof, list_proofs, record_paypal_capture, record_paypal_order, save_proof
+from app.persistence.db import approve_proof, get_proof, list_proofs, record_paypal_capture, record_paypal_order, reject_proof, save_proof
 from app.integrations.paypal import PayPalError, capture_order, create_order
 
 router = APIRouter(prefix="/api")
@@ -67,6 +67,14 @@ async def approve_decision(decision_id: str) -> dict:
     if not proof:
         raise HTTPException(status_code=409, detail="Decision Proof is missing, blocked, or already processed")
     return {"decision_id": decision_id, "status": "approved", "approved_at": proof["approved_at"]}
+
+
+@router.post("/decision-proofs/{decision_id}/reject")
+async def reject_decision(decision_id: str) -> dict:
+    proof = reject_proof(decision_id)
+    if not proof:
+        raise HTTPException(status_code=409, detail="Decision Proof is missing, blocked, or already processed")
+    return {"decision_id": decision_id, "status": "rejected", "rejected_at": proof["rejected_at"]}
 
 
 @router.post("/paypal/orders")

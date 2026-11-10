@@ -31,6 +31,16 @@ export default function DecisionProofDetail() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); } finally { setWorking(false); }
   }
 
+  async function reject() {
+    setWorking(true); setError("");
+    try {
+      const response = await fetch(`${API}/api/decision-proofs/${encodeURIComponent(params.decisionId)}/reject`, { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Rejection failed");
+      setProof((current: any) => ({ ...current, status: "rejected", rejected_at: data.rejected_at }));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); } finally { setWorking(false); }
+  }
+
   if (error) return <div className="content proof-detail"><Link href="/decision-proofs" className="back-link">← Decision Proofs</Link><div className="detail-error"><h1>Proof unavailable</h1><p>{error}</p></div></div>;
   if (!proof) return <div className="content proof-detail"><span className="proof-loading">Loading Decision Proof…</span></div>;
   const selected = proof.selected_products || [];
@@ -43,7 +53,7 @@ export default function DecisionProofDetail() {
         <section className="proof-section"><div className="section-label">POLICY GUARD CHECKS</div><div className="proof-checks">{proof.policy.checks.map((check:any)=><div key={check.name}><span className={check.passed ? "check-pass" : "check-pending"}>{check.passed ? "✓" : "!"}</span><div><b>{check.name.replaceAll("_", " ")}</b><small>{check.detail}</small></div><em>{check.passed ? "PASS" : "REVIEW"}</em></div>)}</div></section>
         <section className="proof-section"><div className="section-label">AUDIT TIMELINE</div><div className="timeline">{(proof.workflow_events || []).map((event:any)=><div key={event.type}><span>●</span><div><b>{event.type.replaceAll("_", " ")}</b><small>{event.state || "OmniBuy workflow"}</small></div></div>)}<div><span>○</span><div><b>human approval</b><small>Required before any payment</small></div></div></div></section>
       </main>
-      <aside className="proof-side"><section className="proof-section"><div className="section-label">DECISION CONTROL</div><p className="fact">Facts are calculated from the live discovery response and server-side policy engine.</p><div className="side-line"><span>Objective</span><b>{proof.requirements.objective.replaceAll("_", " ")}</b></div><div className="side-line"><span>Currency</span><b>{proof.requirements.currency}</b></div><div className="side-line"><span>Payment</span><b>PayPal Sandbox</b></div>{proof.status === "awaiting_approval" && <button className="run" onClick={approve} disabled={working}>{working ? "Creating secure order…" : "Approve and continue to PayPal →"}</button>}{paypal?.links?.find((link:any)=>link.rel === "approve")?.href && <a className="run" href={paypal.links.find((link:any)=>link.rel === "approve").href}>Open PayPal Sandbox →</a>}{paypal && <small className="order-id">Order {paypal.paypal_order_id}</small>}</section><section className="proof-section"><div className="section-label">PROOF INTEGRITY</div><p className="fact">Decision ID</p><code>{proof.decision_id}</code><p className="fact">Created</p><code>{proof.created_at}</code></section></aside>
+      <aside className="proof-side"><section className="proof-section"><div className="section-label">DECISION CONTROL</div><p className="fact">Facts are calculated from the live discovery response and server-side policy engine.</p><div className="side-line"><span>Objective</span><b>{proof.requirements.objective.replaceAll("_", " ")}</b></div><div className="side-line"><span>Currency</span><b>{proof.requirements.currency}</b></div><div className="side-line"><span>Payment</span><b>PayPal Sandbox</b></div>{proof.status === "awaiting_approval" && <div className="decision-actions"><button className="run" onClick={approve} disabled={working}>{working ? "Creating secure order…" : "Approve and continue to PayPal →"}</button><button className="reject-button" onClick={reject} disabled={working}>Reject Decision</button></div>}{proof.status === "rejected" && <div className="rejected-banner">Decision rejected. No PayPal order can be created from this proof.</div>}{paypal?.links?.find((link:any)=>link.rel === "approve")?.href && <a className="run" href={paypal.links.find((link:any)=>link.rel === "approve").href}>Open PayPal Sandbox →</a>}{paypal && <small className="order-id">Order {paypal.paypal_order_id}</small>}</section><section className="proof-section"><div className="section-label">PROOF INTEGRITY</div><p className="fact">Decision ID</p><code>{proof.decision_id}</code><p className="fact">Created</p><code>{proof.created_at}</code></section></aside>
     </div>
   </div>;
 }

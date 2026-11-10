@@ -48,6 +48,18 @@ def approve_proof(decision_id: str) -> dict | None:
     return proof
 
 
+def reject_proof(decision_id: str) -> dict | None:
+    proof = get_proof(decision_id)
+    if not proof or proof["status"] != "awaiting_approval":
+        return None
+    now = datetime.now(timezone.utc).isoformat()
+    proof["status"] = "rejected"
+    proof["rejected_at"] = now
+    with engine.begin() as connection:
+        connection.execute(text("UPDATE decision_proofs SET status='rejected', approved_at=:rejected, payload=:payload WHERE decision_id=:id"), {"id": decision_id, "rejected": now, "payload": json.dumps(proof)})
+    return proof
+
+
 def record_paypal_order(decision_id: str, order_id: str) -> dict | None:
     proof = get_proof(decision_id)
     if not proof or proof.get("status") != "approved":
