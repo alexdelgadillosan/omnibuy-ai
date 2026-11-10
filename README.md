@@ -137,6 +137,11 @@ steps.
 See [`docs/demo-scenarios.md`](docs/demo-scenarios.md) for the exact requests and
 the recorded Decision Proof IDs.
 
+Submission assets:
+
+- [`docs/demo-video-script.md`](docs/demo-video-script.md) — 2:45 shot list and narration
+- [`docs/devpost-submission.md`](docs/devpost-submission.md) — submission draft (publish only after deployment and video exist)
+
 ## Limitations
 
 - Prices and availability are a point-in-time Channel3 snapshot. Shipping, taxes
