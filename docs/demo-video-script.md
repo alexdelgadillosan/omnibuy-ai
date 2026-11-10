@@ -3,6 +3,12 @@
 Target length: **2:45**. Record at 1440×900, browser zoom 100%, no personal tabs
 visible. Keep the cursor deliberate; do not cut away from real API responses.
 
+> A silent 2:52 screen recording is available at
+> `docs/demo/omnibuy-demo-silent-2m52.mp4` (kept out of git because of size).
+> Use it as the visual base and add narration; the recorded cut runs Command
+> Center → Agent Workspace → completed proof `DEC-740479248D32` → Policy Guard
+> simulation → re-optimization proofs → Audit Ledger.
+
 ## 0:00–0:15 — Hook
 
 **Screen:** Command Center.

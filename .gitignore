@@ -9,3 +9,5 @@ node_modules/
 dist/
 
 *.tsbuildinfo
+
+docs/demo/*.mp4
