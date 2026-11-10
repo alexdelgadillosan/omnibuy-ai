@@ -167,20 +167,14 @@
 .topbar .search input::placeholder{color:#697573}
 .topbar .search>span{color:#7d8987;font-size:12px}
 .top-actions{display:flex;align-items:center;gap:8px;font:9.5px ui-monospace,monospace;color:#93a09c}
-.mode-pill{border:1px solid #2c3835;border-radius:12px;padding:6px 9px;color:#b9c8ae;white-space:nowrap}
-.mode-pill:first-letter{color:var(--lime)}
-.mode-pill-muted{color:#8a9694}
-.preauth{border:1px solid #2c3835;border-radius:5px;padding:6px 9px;color:#7f8b88;white-space:nowrap}
-.preauth b{color:#dfe9dd;font-size:10px}
 .top-icon{position:relative;display:grid;place-items:center;width:28px;height:28px;border:1px solid #263130;border-radius:6px;color:#93a09c;font-size:12px}
 .top-icon:hover{background:#141c1a;color:#e2ebe1}
 .top-icon i{position:absolute;top:-5px;right:-5px;display:grid;place-items:center;min-width:14px;height:14px;padding:0 3px;border-radius:7px;background:#2f4520;color:var(--lime);font:8px ui-monospace,monospace;font-style:normal}
 .override{border:1px solid #6b352c;border-radius:5px;background:#221513;color:#e39987;padding:6px 9px;font:9px ui-monospace,monospace;white-space:nowrap}
 .override:hover{background:#301a17}
 .avatar{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#2b3431;color:#d8e4d5;font:9px ui-monospace,monospace}
-@media(max-width:1180px){.preauth,.mode-pill-muted{display:none}}
 @media(max-width:900px){.override{display:none}.topbar .search{max-width:none}}
-@media(max-width:760px){.mode-pill{display:none}.top-actions{gap:5px}}
+@media(max-width:760px){.top-actions{gap:5px}}
 
 /* Command Center — Stitch-aligned dashboard */
 .cc-hero{max-width:none;margin:0 0 16px;text-align:left}
