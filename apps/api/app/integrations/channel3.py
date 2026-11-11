@@ -21,10 +21,13 @@ async def search_channel3(query: str, currency: str = "USD") -> list[Product]:
         body: dict[str, Any] = response.json()
     products: list[Product] = []
     for item in body.get("products", body.get("results", [])):
+        if not isinstance(item, dict):
+            continue
         try:
-            offer = next((candidate for candidate in item.get("offers", []) if candidate.get("price", {}).get("currency") == currency and candidate.get("availability") == "InStock"), None)
-            if offer is None and item.get("offers"):
-                offer = item["offers"][0]
+            offers = [candidate for candidate in (item.get("offers") or []) if isinstance(candidate, dict)]
+            offer = next((candidate for candidate in offers if candidate.get("price", {}).get("currency") == currency and candidate.get("availability") == "InStock"), None)
+            if offer is None and offers:
+                offer = offers[0]
             if not offer:
                 continue
             price = offer.get("price", {})
