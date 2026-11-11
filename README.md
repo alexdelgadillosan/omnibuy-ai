@@ -2,6 +2,9 @@
 
 **AI can decide what to buy. OmniBuy proves it should.**
 
+**Live demo:** https://omnibuy-web.onrender.com · API: https://omnibuy-api.onrender.com/api/health
+Deployed on Render (free tier — first request after ~15 min idle may take ~50 s to spin up).
+
 OmniBuy is a verified autonomous commerce agent for the PayPal AI Hackathon. It
 separates live product discovery, deterministic optimization, server-side policy
 checks, explicit human approval, PayPal Sandbox payment, and auditability — so an
