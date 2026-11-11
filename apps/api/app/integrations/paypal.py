@@ -19,6 +19,8 @@ async def _token() -> str:
 
 
 async def create_order(decision_id: str, amount: str, currency: str = "USD") -> dict[str, Any]:
+    if currency.upper() != "USD":
+        raise PayPalError("OmniBuy only permits USD PayPal orders.")
     token = await _token()
     settings = get_settings()
     async with httpx.AsyncClient(timeout=20) as client:

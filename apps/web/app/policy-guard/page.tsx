@@ -38,10 +38,17 @@ type Simulation = {
   passed: boolean;
   status: string;
   checks: Check[];
+  settings: Policy;
 };
 
 const usd = (value: number) =>
   `$${Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+function apiError(data: { detail?: unknown }, fallback: string) {
+  if (typeof data.detail === "string") return data.detail;
+  if (Array.isArray(data.detail)) return data.detail.map((item) => item?.msg || "Invalid value").join(" ");
+  return fallback;
+}
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -83,7 +90,7 @@ export default function PolicyGuard() {
     try {
       const response = await fetch(`${API}/api/policy`);
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || "Policy Guard is unavailable");
+      if (!response.ok) throw new Error(apiError(data, "Policy Guard is unavailable"));
       setSettings(data.settings);
       setSaved(data.settings);
       setStats(data.stats);
@@ -106,7 +113,7 @@ export default function PolicyGuard() {
 
   async function save(next?: Policy) {
     const payload = next || settings;
-    if (!payload) return;
+    if (!payload) return false;
     setSaving(true);
     setError("");
     setNotice("");
@@ -117,14 +124,16 @@ export default function PolicyGuard() {
         body: JSON.stringify(payload),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || "Could not save the policy matrix");
+      if (!response.ok) throw new Error(apiError(data, "Could not save the policy matrix"));
       setSettings(data.settings);
       setSaved(data.settings);
       setStats(data.stats);
       setEvents(data.events || []);
       setNotice("Policy matrix saved. New proposals use these limits.");
+      return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
+      return false;
     } finally {
       setSaving(false);
     }
@@ -143,7 +152,7 @@ export default function PolicyGuard() {
     try {
       const response = await fetch(`${API}/api/policy/reset`, { method: "POST" });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || "Could not restore defaults");
+      if (!response.ok) throw new Error(apiError(data, "Could not restore defaults"));
       setSettings(data.settings);
       setSaved(data.settings);
       setStats(data.stats);
@@ -156,9 +165,12 @@ export default function PolicyGuard() {
     }
   }
 
-  async function simulate(next?: Policy) {
-    const active = next || settings;
-    if (!active) return;
+  async function simulate() {
+    if (!saved) return;
+    if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
+      setError("Enter a requested amount greater than zero.");
+      return;
+    }
     setRunning(true);
     setError("");
     try {
@@ -168,7 +180,7 @@ export default function PolicyGuard() {
         body: JSON.stringify({ amount: Number(amount) || 0, currency: "USD", category, merchant }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || "Simulation failed");
+      if (!response.ok) throw new Error(apiError(data, "Simulation failed"));
       setSimulation(data);
       const refreshed = await fetch(`${API}/api/policy`).then((r) => r.json());
       setStats(refreshed.stats);
@@ -181,14 +193,14 @@ export default function PolicyGuard() {
   }
 
   async function grantException() {
-    if (!settings) return;
+    if (!simulation) return;
+    const active = simulation.settings;
     const requested = Number(amount) || 0;
-    if (requested <= settings.budget_cap) return;
+    if (requested <= active.budget_cap) return;
     if (!window.confirm(`Raise the session cap to ${usd(requested)} and persist this policy change?`)) return;
-    const next = { ...settings, budget_cap: Math.ceil(requested) };
+    const next = { ...active, budget_cap: Math.ceil(requested) };
     setSettings(next);
-    await save(next);
-    await simulate(next);
+    if (await save(next)) await simulate();
   }
 
   function addMerchant() {
@@ -235,13 +247,16 @@ export default function PolicyGuard() {
     URL.revokeObjectURL(url);
   }
 
-  const rulesEnforced = settings
-    ? 6 + settings.restricted_categories.length + (settings.allowed_merchants.length ? 1 : 0)
-    : 0;
-
   const capCheck = simulation?.checks.find((check) => check.name === "budget_cap");
-  const merchantCheck = simulation?.checks.find((check) => check.name === "merchant_allowlist");
-  const categoryCheck = simulation?.checks.find((check) => check.name === "restricted_category");
+  const firstFailure = simulation?.checks.find((check) => !check.passed && check.name !== "human_approval");
+  const guardStages = [
+    ["currency", "USD Currency"],
+    ["budget_cap", "Session Cap"],
+    ["monthly_cap", "Monthly Cap"],
+    ["max_item_price", "Item Ceiling"],
+    ["merchant_allowlist", "Merchant"],
+    ["restricted_category", "Category"],
+  ];
 
   if (loading) {
     return <div className="content policy-page"><div className="policy-skeleton">Loading the live policy matrix…</div></div>;
@@ -275,7 +290,7 @@ export default function PolicyGuard() {
           <span className="policy-security-dot">●</span>
           <div>
             <small>SECURITY STATE</small>
-            <b>Guardrails Active — {rulesEnforced} Rules Enforced | 0 Bypasses Permitted</b>
+            <b>Guardrails Active | 0 Bypasses Permitted</b>
             <p>{stats?.evaluations ?? 0} evaluations logged · {stats?.blocked ?? 0} intercepted</p>
           </div>
         </div>
@@ -291,7 +306,7 @@ export default function PolicyGuard() {
               <span className="policy-section-icon">⚖</span>
               <h2>Deterministic Policy Matrix</h2>
             </div>
-            <span className="policy-sync-state">● SYNCHRONIZED AT GATEWAY</span>
+            <span className="policy-sync-state">● PERSISTED SERVER-SIDE</span>
           </div>
 
           <article className="policy-block">
@@ -312,6 +327,7 @@ export default function PolicyGuard() {
                   max={2500}
                   step={50}
                   value={Math.min(2500, Math.max(100, settings.budget_cap))}
+                  aria-label="Per-session budget cap slider"
                   onChange={(event) => update("budget_cap", Number(event.target.value))}
                 />
                 <div className="policy-slider-scale"><span>$100</span><span>Max $2.5k</span></div>
@@ -332,6 +348,7 @@ export default function PolicyGuard() {
                   max={20000}
                   step={500}
                   value={Math.min(20000, Math.max(1000, settings.monthly_cap))}
+                  aria-label="Monthly budget cap"
                   onChange={(event) => update("monthly_cap", Number(event.target.value))}
                 />
                 <div className="policy-slider-scale"><span>$1,000</span><span>Max $20k</span></div>
@@ -368,6 +385,7 @@ export default function PolicyGuard() {
                 onChange={(event) => setMerchantDraft(event.target.value)}
                 onKeyDown={(event) => event.key === "Enter" && addMerchant()}
                 placeholder="Add merchant name (e.g. Dell Direct)"
+                aria-label="New allowed merchant"
               />
               <button type="button" onClick={addMerchant}>+ Add merchant</button>
             </div>
@@ -387,7 +405,7 @@ export default function PolicyGuard() {
                 <div className="policy-restricted" key={item}>
                   <b>{item}</b>
                   <span><i>⊘</i> Blocked</span>
-                  <button type="button" onClick={() => removeCategory(item)}>Remove</button>
+                  <button type="button" onClick={() => removeCategory(item)} aria-label={`Remove restricted category ${item}`}>Remove</button>
                 </div>
               ))}
               {settings.restricted_categories.length === 0 && <span className="policy-empty-chip">No restricted categories configured.</span>}
@@ -398,6 +416,7 @@ export default function PolicyGuard() {
                 onChange={(event) => setCategoryDraft(event.target.value)}
                 onKeyDown={(event) => event.key === "Enter" && addCategory()}
                 placeholder="Add restricted category"
+                aria-label="New restricted category"
               />
               <button type="button" onClick={addCategory}>+ Add category</button>
             </div>
@@ -414,13 +433,13 @@ export default function PolicyGuard() {
               </div>
               <div className="policy-toggle-row">
                 <span className="policy-toggle-on">ON</span>
-                <b>Enforced by the PayPal gateway</b>
+                <b>Enforced by OmniBuy before PayPal order creation</b>
               </div>
               <div className="policy-locked-row">
                 <span>Every purchase</span>
                 <b>Explicit sign-off · no amount threshold can bypass it</b>
               </div>
-              <div className="policy-meta-row"><span>✓ Status: Locked ON</span><span>WebAuthn / Passkey</span></div>
+              <div className="policy-meta-row"><span>✓ Status: Locked ON</span><span>Approval recorded in the audit trail</span></div>
             </article>
 
             <article className="policy-block">
@@ -458,6 +477,7 @@ export default function PolicyGuard() {
               max={2500}
               step={50}
               value={Math.min(2500, Math.max(50, settings.max_item_price))}
+              aria-label="Maximum single item price"
               onChange={(event) => update("max_item_price", Number(event.target.value))}
             />
           </article>
@@ -501,10 +521,10 @@ export default function PolicyGuard() {
                   </div>
                   <div className="policy-incident">
                     <div><span>Requested Amount</span><b>{usd(Number(amount) || 0)}</b></div>
-                    <div><span>Authorized Session Budget</span><b>{usd(settings.budget_cap)}</b></div>
+                    <div><span>Authorized Session Budget</span><b>{usd(simulation.settings.budget_cap)}</b></div>
                     <div className="policy-incident-delta">
-                      <span>Violation</span>
-                      <b>+{usd(Math.max(0, (Number(amount) || 0) - settings.budget_cap))} over the active cap</b>
+                      <span>Intercept reason</span>
+                      <b>{firstFailure?.detail || "A deterministic policy check failed."}</b>
                     </div>
                     <div><span>Context</span><b>{merchant || category}</b></div>
                   </div>
@@ -516,8 +536,13 @@ export default function PolicyGuard() {
                     ))}
                   </ul>
                   <div className="policy-sim-actions">
-                    <a className="policy-primary" href="/workspace">↻ Re-optimize cart with {usd(settings.budget_cap)} cap</a>
-                    <button type="button" className="policy-secondary" onClick={() => void grantException()}>✓ Grant one-time budget exception</button>
+                    <button type="button" className="policy-primary" onClick={() => setSimulation(null)}>Adjust request</button>
+                    <a className="policy-secondary" href="/workspace">Re-optimize in Workspace</a>
+                    {capCheck && !capCheck.passed && (
+                      <button type="button" className="policy-secondary" onClick={() => void grantException()} disabled={saving || running}>
+                        Raise session cap &amp; re-run
+                      </button>
+                    )}
                   </div>
                 </>
               ) : (
@@ -526,13 +551,13 @@ export default function PolicyGuard() {
                   <div className="policy-fields">
                     <label>
                       <span>REQUESTED AMOUNT</span>
-                      <div className="policy-amount"><b>$</b><input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" /><i>USD</i></div>
+                      <div className="policy-amount"><b>$</b><input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" aria-label="Requested amount in USD" /><i>USD</i></div>
                     </label>
                     <label>
                       <span>CATEGORY</span>
                       <select value={category} onChange={(event) => setCategory(event.target.value)}>
                         <option value="general">General product</option>
-                        {settings.restricted_categories.map((item) => <option key={item} value={item}>{item}</option>)}
+                        {saved.restricted_categories.map((item) => <option key={item} value={item}>{item}</option>)}
                         <option value="electronics">Electronics</option>
                         <option value="home office">Home office</option>
                       </select>
@@ -561,11 +586,14 @@ export default function PolicyGuard() {
             <article className="policy-stages">
               <span className="policy-stages-label">DETERMINISTIC GUARD STAGE ENGINE</span>
               <div className="policy-stage-row">
-                <span className="ok">✓ Token Valid</span>
-                <span className="ok">✓ Domain Auth</span>
-                <span className={capCheck && !capCheck.passed ? "bad" : "ok"}>{capCheck && !capCheck.passed ? "✕ Cap Clamp" : "✓ Cap Clamp"}</span>
-                <span className={merchantCheck && !merchantCheck.passed ? "bad" : "ok"}>{merchantCheck && !merchantCheck.passed ? "✕ Merchant" : "✓ Merchant"}</span>
-                <span className={categoryCheck && !categoryCheck.passed ? "bad" : "ok"}>{categoryCheck && !categoryCheck.passed ? "✕ Category" : "✓ Category"}</span>
+                {guardStages.map(([name, label]) => {
+                  const check = simulation?.checks.find((item) => item.name === name);
+                  return (
+                    <span key={name} className={check ? (check.passed ? "ok" : "bad") : ""}>
+                      {check ? (check.passed ? "✓" : "✕") : "○"} {label}
+                    </span>
+                  );
+                })}
               </div>
             </article>
 

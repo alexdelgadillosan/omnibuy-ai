@@ -22,13 +22,18 @@ def verify_policy(request: PurchaseRequest, result: OptimizationResult, settings
     if request.max_price_per_item:
         item_cap = min(item_cap, Decimal(str(request.max_price_per_item)))
     allowlist = {name.strip().lower() for name in (rules.get("allowed_merchants") or []) if str(name).strip()}
-    allowlist |= {name.strip().lower() for name in request.allowed_merchants if str(name).strip()}
+    request_allowlist = {name.strip().lower() for name in request.allowed_merchants if str(name).strip()}
     restricted = {str(item).strip().lower() for item in (rules.get("restricted_categories") or [])}
     restricted |= {str(item).strip().lower() for item in request.restricted_categories}
     currency_ok = request.currency.upper() == "USD" and str(rules.get("currency", "USD")).upper() == "USD"
     oversize = [product for product in result.selected if product.price > item_cap]
     restricted_hits = [product for product in result.selected if product.category.strip().lower() in restricted]
-    merchant_hits = [product for product in result.selected if allowlist and product.merchant.strip().lower() not in allowlist]
+    merchant_hits = [
+        product
+        for product in result.selected
+        if (allowlist and product.merchant.strip().lower() not in allowlist)
+        or (request_allowlist and product.merchant.strip().lower() not in request_allowlist)
+    ]
     committed = Decimal(str(policy_stats()["monthly_committed"]))
     monthly_cap = Decimal(str(rules.get("monthly_cap", 5000)))
     checks = [

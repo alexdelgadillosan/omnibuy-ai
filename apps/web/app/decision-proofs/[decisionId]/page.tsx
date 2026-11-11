@@ -77,6 +77,7 @@ export default function DecisionProofDetail() {
   const passCount = checks.filter((item: any) => item.passed).length;
   const required = proof.requirements?.required_categories || [];
   const satisfied = proof.policy?.checks?.find((item: any) => item.name === "required_categories");
+  const requiredSatisfied = required.length ? (satisfied?.passed ? required.length : 0) : 0;
   const merchants = Array.from(new Set(selected.map((product: any) => product.merchant)));
   const itemCeiling = Number(settings.max_item_price || 0) || Math.max(...selected.map((product: any) => Number(product.price)), 0);
   const maxItem = Math.max(0, ...selected.map((product: any) => Number(product.price)));
@@ -109,7 +110,7 @@ export default function DecisionProofDetail() {
     })),
   ];
 
-  const rationale = `Selected ${selected.length} product${selected.length === 1 ? "" : "s"} for ${usd(proof.optimization?.total)} inside the ${usd(proof.requirements?.budget)} authorized envelope, preserving ${usd(proof.optimization?.remaining_budget)}. The bundle satisfies ${required.length ? `${required.length - (proof.optimization?.missing_categories?.length || 0)}/${required.length}` : "all"} required categories and ${passCount} of ${checks.length} deterministic policy checks. No payment has been initiated at this stage.`;
+  const rationale = `Selected ${selected.length} product${selected.length === 1 ? "" : "s"} for ${usd(proof.optimization?.total)} inside the ${usd(proof.requirements?.budget)} authorized envelope, preserving ${usd(proof.optimization?.remaining_budget)}. The bundle satisfies ${required.length ? `${requiredSatisfied}/${required.length}` : "all"} required categories and ${passCount} of ${checks.length} deterministic policy checks. No payment has been initiated at this stage.`;
 
   const alternativeHref = `/workspace?request=${encodeURIComponent(`${proof.requirements?.request} · request a cheaper alternative`)}&budget=${encodeURIComponent(proof.requirements?.budget)}&objective=lowest_cost`;
   const qualityHref = `/workspace?request=${encodeURIComponent(`${proof.requirements?.request} · prioritize product quality`)}&budget=${encodeURIComponent(proof.requirements?.budget)}&objective=highest_quality`;
@@ -145,7 +146,7 @@ export default function DecisionProofDetail() {
 
       <div className="dp-checkgrid">
         <CheckCard index="01" title="BUDGET CONSTRAINTS" check={check("budget_cap")} value={usd(proof.optimization?.total)} sub={`/ ${usd(proof.requirements?.budget)}`} detail={`Remaining ${usd(proof.optimization?.remaining_budget)}`} />
-        <CheckCard index="02" title="PRODUCT SPEC" check={check("required_categories") || satisfied} value={required.length ? `${required.length - (proof.optimization?.missing_categories?.length || 0)} of ${required.length}` : `${selected.length} selected`} sub="Satisfied" detail={required.length ? required.join(", ") : "No required category envelope"} />
+        <CheckCard index="02" title="PRODUCT SPEC" check={check("required_categories") || satisfied} value={required.length ? `${requiredSatisfied} of ${required.length}` : `${selected.length} selected`} sub="Satisfied" detail={required.length ? required.join(", ") : "No required category envelope"} />
         <CheckCard index="03" title="ITEM CEILING" check={check("max_item_price")} value={usd(maxItem)} sub={`/ ${usd(itemCeiling)}`} detail={check("max_item_price")?.detail || "Per-item ceiling"} />
         <CheckCard index="04" title="MERCHANT TRUST" check={check("merchant_allowlist")} value={check("merchant_allowlist")?.passed ? "PASSED" : "BLOCKED"} sub={`${merchants.length} merchant${merchants.length === 1 ? "" : "s"}`} detail={check("merchant_allowlist")?.detail || "Allowlist evaluated"} />
         <CheckCard index="05" title="AUTH STATUS" check={{ passed: ["approved", "checkout_pending", "completed"].includes(proof.status) }} value={["approved", "checkout_pending", "completed"].includes(proof.status) ? "APPROVED" : blocked || proof.status === "rejected" ? "BLOCKED" : "PENDING"} sub={proof.status === "completed" ? "Captured" : "Human sign-off"} detail={proof.status === "completed" ? "PayPal capture persisted" : "Protocol: explicit supervisor approval"} />

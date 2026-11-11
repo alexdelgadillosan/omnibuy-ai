@@ -54,7 +54,7 @@ function Proofs() {
         <div>
           <label>VERIFIED DECISIONS</label>
           <h1>Decision Proofs</h1>
-          <p>Every proposal, policy check and approval is persisted with an integrity hash over the immutable decision fields.</p>
+          <p>Proposals, policy checks and approvals are persisted. New proofs include an integrity hash over their immutable decision fields.</p>
         </div>
         <Link className="deploy-agent" href="/workspace">✦ Start a new proof</Link>
       </div>
@@ -71,7 +71,7 @@ function Proofs() {
           <span>⌕</span>
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filter by decision ID, request or status…" />
         </div>
-        <span className="live-sync">● Live sync · {filtered.length} records</span>
+        <span className="live-sync">● Persisted · {filtered.length} records</span>
       </div>
 
       {error && <div className="discovery-error"><b>Ledger unavailable</b><p>{error}</p></div>}

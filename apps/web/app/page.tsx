@@ -91,6 +91,11 @@ export default function CommandCenter() {
       setError("Describe what you want to buy first.");
       return;
     }
+    const budgetNumber = Number(budget);
+    if (!Number.isFinite(budgetNumber) || budgetNumber <= 0) {
+      setError("Enter a maximum budget greater than zero.");
+      return;
+    }
     setCreating(true);
     setError("");
     setCreated(null);
@@ -116,7 +121,7 @@ export default function CommandCenter() {
     void discover(prompt);
   }
 
-  const rules = policy ? 6 + policy.settings.restricted_categories.length + (policy.settings.allowed_merchants.length ? 1 : 0) : 0;
+  const rules = policy ? 8 : 0;
   const awaiting = proofs.filter((proof) => proof.status === "awaiting_approval").length;
   const authorized = proofs
     .filter((proof) => ["approved", "checkout_pending"].includes(proof.status))
@@ -128,7 +133,7 @@ export default function CommandCenter() {
     const status = latest?.status;
     return [
       { label: "Intent analysis & spec extraction", detail: latest ? latest.requirements.request.slice(0, 62) : "Waiting for a request", state: latest ? "done" : "idle" },
-      { label: "Live merchant discovery", detail: latest ? `${latest.selected_products.length} selected from live catalog` : "Channel3 merchant graph", state: latest ? "done" : "idle" },
+      { label: "Merchant discovery", detail: latest ? `${latest.selected_products.length} selected from live catalog` : "Channel3 merchant graph", state: latest ? "done" : "idle" },
       { label: "Deterministic optimization", detail: latest ? `${usd(latest.optimization.total)} optimized total` : "Pareto frontier ready", state: latest ? "done" : "idle" },
       { label: "Policy Guard verification", detail: status === "blocked" ? "Proposal intercepted" : latest ? "Deterministic checks evaluated" : "Server-side enforcement", state: status === "blocked" ? "blocked" : latest ? "done" : "idle" },
       { label: "Human supervisor approval", detail: ["approved", "checkout_pending", "completed"].includes(status) ? "Approved by supervisor" : status === "rejected" ? "Rejected by supervisor" : "Awaiting decision", state: ["approved", "checkout_pending", "completed"].includes(status) ? "done" : status === "rejected" ? "blocked" : latest ? "active" : "idle" },
@@ -188,7 +193,7 @@ export default function CommandCenter() {
       </section>
 
       <section className="metrics cc-metrics">
-        <Metric label="LIVE CATALOG" value={loading ? "…" : String(products.length)} detail="Channel3 verified offers" progress={Math.min(100, products.length * 2.5)} />
+        <Metric label="PRODUCT CATALOG" value={loading ? "…" : String(products.length)} detail="Channel3 verified offers" progress={Math.min(100, products.length * 2.5)} />
         <Metric label="DECISION PROOFS" value={String(proofs.length)} detail={`${awaiting} awaiting approval`} progress={proofs.length ? 100 : 4} />
         <Metric label="POLICY GUARD" value="Active" detail={`${rules} rules · ${policy?.stats.blocked ?? 0} intercepted`} progress={100} />
         <Metric label="PRE-AUTH POOL" value={usd(authorized)} detail="Approved · awaiting capture" progress={authorized > 0 ? 72 : 4} />
@@ -197,8 +202,8 @@ export default function CommandCenter() {
       <div className="cc-lower">
         <section className="cc-sessions">
           <div className="section-head">
-            <div><label>RECENT PURCHASING SESSIONS</label><h2>Live decision ledger</h2></div>
-            <span className="live-sync">● Live sync</span>
+            <div><label>RECENT PURCHASING SESSIONS</label><h2>Decision ledger</h2></div>
+            <span className="live-sync">● Persisted records</span>
           </div>
           {proofs.length === 0 ? (
             <div className="empty"><span>◈</span><div><b>No sessions yet</b><p>Run the agent to create the first verified Decision Proof.</p></div></div>
@@ -212,9 +217,9 @@ export default function CommandCenter() {
         </section>
 
         <aside className="cc-telemetry">
-          <div className="section-head"><div><label>ACTIVE TELEMETRY</label><h2>System status</h2></div><span className="live-sync">● Healthy</span></div>
+          <div className="section-head"><div><label>ACTIVE TELEMETRY</label><h2>System status</h2></div><span className="live-sync">● Latest load</span></div>
           <div className="telemetry-card">
-            <TelemetryRow icon="⌕" label="Channel3 Discovery" value={loading ? "Searching" : `${products.length} offers`} detail="Live product graph" />
+            <TelemetryRow icon="⌕" label="Channel3 Discovery" value={loading ? "Searching" : `${products.length} offers`} detail="Verified product graph" />
             <TelemetryRow icon="✦" label="Agent Gateway" value="Online" detail="Deterministic pipeline" />
             <TelemetryRow icon="$" label="PayPal Sandbox" value="Ready" detail="Orders v2 · capture server-side" />
             <TelemetryRow icon="⚖" label="Policy Guard" value="Enforcing" detail={`${rules} active rules`} />
@@ -235,13 +240,13 @@ export default function CommandCenter() {
 
       <section className="catalog-section">
         <div className="section-head">
-          <div><label>LIVE PRODUCT DISCOVERY</label><h2>{query}</h2></div>
+          <div><label>PRODUCT DISCOVERY RESULTS</label><h2>{query}</h2></div>
           <Link href="/workspace">Open Agent Workspace →</Link>
         </div>
         {error && !products.length ? (
           <div className="discovery-error"><b>Discovery unavailable</b><p>{error}</p></div>
         ) : loading ? (
-          <div className="catalog-loading">Querying Channel3 live product graph…</div>
+          <div className="catalog-loading">Querying Channel3 product graph…</div>
         ) : products.length === 0 ? (
           <div className="empty"><span>◈</span><div><b>No live products matched</b><p>Try a broader shopping request.</p></div></div>
         ) : (

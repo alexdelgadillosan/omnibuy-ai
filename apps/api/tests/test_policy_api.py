@@ -40,12 +40,27 @@ def test_policy_api_persists_edits_and_drives_simulation(database):
     assert blocked["status"] == "BLOCKED"
     assert any(check["name"] == "merchant_allowlist" and not check["passed"] for check in blocked["checks"])
 
+    missing = client.post("/api/policy/simulate", json={"amount": 200}).json()
+    assert missing["status"] == "BLOCKED"
+    assert any(check["name"] == "merchant_allowlist" and not check["passed"] for check in missing["checks"])
+
     allowed = client.post("/api/policy/simulate", json={"amount": 200, "merchant": "Dell Direct"}).json()
     assert allowed["status"] == "AWAITING_APPROVAL"
 
     reset = client.post("/api/policy/reset").json()
     assert reset["settings"]["budget_cap"] == DEFAULT_POLICY["budget_cap"]
     assert reset["settings"]["allowed_merchants"] == []
+
+
+def test_policy_simulation_enforces_monthly_cap(database):
+    client.put("/api/policy", json=payload(monthly_cap=100))
+
+    response = client.post("/api/policy/simulate", json={"amount": 101})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "BLOCKED"
+    assert any(check["name"] == "monthly_cap" and not check["passed"] for check in body["checks"])
 
 
 def test_approval_cannot_be_disabled_through_the_api(database):
@@ -59,6 +74,7 @@ def test_proposal_uses_live_policy_allowlist(database):
         "request": "buy a monitor",
         "budget": 500,
         "objective": "lowest_cost",
+        "allowed_merchants": ["Amazon"],
         "candidates": [candidate("monitor", "320", 80)],
     })
     assert response.status_code == 200

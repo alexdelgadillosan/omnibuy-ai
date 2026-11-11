@@ -40,6 +40,11 @@ export default function Workspace() {
   }, []);
 
   async function run() {
+    const budgetNumber = Number(budget);
+    if (!Number.isFinite(budgetNumber) || budgetNumber <= 0) {
+      setError("Enter a maximum budget greater than zero.");
+      return;
+    }
     setLoading(true);
     setError("");
     setProof(null);
@@ -88,7 +93,7 @@ export default function Workspace() {
 
   const stages = [
     { title: "Understanding requirements", detail: request.trim() || "Waiting for a shopping request", state: proof ? "done" : loading ? "active" : "idle" },
-    { title: "Discovering products", detail: proof ? `${proof.evaluated_candidates} candidates evaluated on Channel3` : "Live merchant catalog", state: proof ? "done" : loading ? "active" : "idle" },
+    { title: "Discovering products", detail: proof ? `${proof.evaluated_candidates} candidates evaluated on Channel3` : "Verified merchant catalog", state: proof ? "done" : loading ? "active" : "idle" },
     { title: "Comparing alternatives", detail: proof ? `${proof.alternatives?.length || 0} alternative bundles computed` : "Pareto comparison", state: proof ? "done" : "idle" },
     { title: "Optimizing combinations", detail: proof ? `${usd(proof.optimization.total)} optimized total` : "Deterministic optimizer", state: proof ? "done" : "idle" },
     { title: "Verifying purchase policies", detail: proof ? (blocked ? "Policy Guard intercepted this proposal" : `${proof.policy.checks.filter((check: any) => check.passed).length} deterministic checks passed`) : "Server-side Policy Guard", state: proof ? (blocked ? "blocked" : "done") : "idle" },
@@ -222,7 +227,7 @@ export default function Workspace() {
                   ))}
                 </div>
                 {blocked ? (
-                  <div className="blocked-proof">Policy Guard blocked this proposal. Adjust the request or budget in Policy Guard to generate a compliant alternative.</div>
+                  <div className="blocked-proof">Policy Guard blocked this proposal. Adjust the request or budget here, or tune the limits in Policy Guard, then run again.</div>
                 ) : paypal?.paypal_order_id ? (
                   <div className="checkout-ready">
                     <b>PayPal order {paypal.paypal_order_id}</b>

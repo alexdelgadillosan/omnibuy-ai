@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timezone
+from decimal import Decimal
 from uuid import uuid4
 from sqlalchemy import create_engine, text
 from app.core.config import get_settings
@@ -50,15 +51,42 @@ def get_proof(decision_id: str) -> dict | None:
 
 
 def approve_proof(decision_id: str) -> dict | None:
-    proof = get_proof(decision_id)
-    if not proof or proof["status"] != "awaiting_approval":
-        return None
-    now = datetime.now(timezone.utc).isoformat()
-    proof["status"] = "approved"
-    proof["approved_at"] = now
-    with engine.begin() as connection:
-        connection.execute(text("UPDATE decision_proofs SET status='approved', approved_at=:approved, payload=:payload WHERE decision_id=:id"), {"id": decision_id, "approved": now, "payload": json.dumps(proof)})
-    return proof
+    init_db()
+    with engine.connect() as connection:
+        connection.execute(text("BEGIN IMMEDIATE"))
+        row = connection.execute(text("SELECT payload,status FROM decision_proofs WHERE decision_id=:id"), {"id": decision_id}).mappings().first()
+        if not row or row["status"] != "awaiting_approval":
+            return None
+        proof = json.loads(row["payload"])
+        from app.services.proof import proof_hash
+        if not proof.get("integrity_hash") or proof_hash(proof) != proof["integrity_hash"]:
+            return None
+
+        settings_row = connection.execute(text("SELECT payload FROM policy_settings WHERE id=1")).mappings().first()
+        settings = {**DEFAULT_POLICY, **(json.loads(settings_row["payload"]) if settings_row else {})}
+        month_prefix = datetime.now(timezone.utc).strftime("%Y-%m")
+        committed_rows = connection.execute(text("SELECT payload FROM decision_proofs WHERE status IN ('approved','checkout_pending','completed')")).mappings().all()
+        committed = sum(
+            (Decimal(str(json.loads(item["payload"]).get("optimization", {}).get("total") or 0))
+             for item in committed_rows
+             if str(json.loads(item["payload"]).get("created_at", "")).startswith(month_prefix)),
+            Decimal("0"),
+        )
+        total = Decimal(str(proof.get("optimization", {}).get("total") or 0))
+        if committed + total > Decimal(str(settings["monthly_cap"])):
+            return None
+
+        now = datetime.now(timezone.utc).isoformat()
+        proof["status"] = "approved"
+        proof["approved_at"] = now
+        updated = connection.execute(
+            text("UPDATE decision_proofs SET status='approved', approved_at=:approved, payload=:payload WHERE decision_id=:id AND status='awaiting_approval'"),
+            {"id": decision_id, "approved": now, "payload": json.dumps(proof)},
+        )
+        if updated.rowcount != 1:
+            return None
+        connection.commit()
+        return proof
 
 
 def reject_proof(decision_id: str) -> dict | None:
@@ -69,7 +97,9 @@ def reject_proof(decision_id: str) -> dict | None:
     proof["status"] = "rejected"
     proof["rejected_at"] = now
     with engine.begin() as connection:
-        connection.execute(text("UPDATE decision_proofs SET status='rejected', approved_at=:rejected, payload=:payload WHERE decision_id=:id"), {"id": decision_id, "rejected": now, "payload": json.dumps(proof)})
+        updated = connection.execute(text("UPDATE decision_proofs SET status='rejected', payload=:payload WHERE decision_id=:id AND status='awaiting_approval'"), {"id": decision_id, "payload": json.dumps(proof)})
+        if updated.rowcount != 1:
+            return None
     return proof
 
 
@@ -79,7 +109,9 @@ def record_paypal_order(decision_id: str, order_id: str) -> dict | None:
         return None
     proof["status"] = "checkout_pending"
     with engine.begin() as connection:
-        connection.execute(text("UPDATE decision_proofs SET status='checkout_pending', paypal_order_id=:order_id, payload=:payload WHERE decision_id=:id"), {"id": decision_id, "order_id": order_id, "payload": json.dumps(proof)})
+        updated = connection.execute(text("UPDATE decision_proofs SET status='checkout_pending', paypal_order_id=:order_id, payload=:payload WHERE decision_id=:id AND status='approved'"), {"id": decision_id, "order_id": order_id, "payload": json.dumps(proof)})
+        if updated.rowcount != 1:
+            return None
     return proof
 
 
@@ -95,17 +127,19 @@ def get_proof_by_order_id(order_id: str) -> dict | None:
 
 
 def record_paypal_capture(order_id: str, capture_id: str) -> dict | None:
+    if not capture_id:
+        return None
     init_db()
     with engine.begin() as connection:
-        row = connection.execute(text("SELECT decision_id,payload FROM decision_proofs WHERE paypal_order_id=:order_id"), {"order_id": order_id}).mappings().first()
-        if not row:
+        row = connection.execute(text("SELECT decision_id,payload,status FROM decision_proofs WHERE paypal_order_id=:order_id"), {"order_id": order_id}).mappings().first()
+        if not row or row["status"] != "checkout_pending":
             return None
         proof = json.loads(row["payload"])
-        if proof.get("status") != "checkout_pending":
-            return None
         proof["status"] = "completed"
         proof["paypal_capture_id"] = capture_id
-        connection.execute(text("UPDATE decision_proofs SET status='completed', paypal_capture_id=:capture_id, payload=:payload WHERE decision_id=:id"), {"id": row["decision_id"], "capture_id": capture_id, "payload": json.dumps(proof)})
+        updated = connection.execute(text("UPDATE decision_proofs SET status='completed', paypal_capture_id=:capture_id, payload=:payload WHERE decision_id=:id AND status='checkout_pending'"), {"id": row["decision_id"], "capture_id": capture_id, "payload": json.dumps(proof)})
+        if updated.rowcount != 1:
+            return None
         return proof
 
 

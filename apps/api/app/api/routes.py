@@ -1,3 +1,4 @@
+from decimal import Decimal, InvalidOperation
 from typing import Literal
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, field_validator
@@ -95,12 +96,15 @@ async def simulate_policy(request: PolicySimulation) -> dict:
     restricted = {str(item).strip().lower() for item in settings.get("restricted_categories", [])}
     allowlist = {str(item).strip().lower() for item in settings.get("allowed_merchants", []) if str(item).strip()}
     merchant = request.merchant.strip()
+    monthly_committed = float(policy_stats()["monthly_committed"])
+    merchant_allowed = not allowlist or merchant.lower() in allowlist
     checks = [
         {"name": "budget_cap", "passed": request.amount <= float(settings["budget_cap"]), "detail": f"${request.amount:.2f} vs ${float(settings['budget_cap']):.2f} session cap."},
+        {"name": "monthly_cap", "passed": monthly_committed + request.amount <= float(settings["monthly_cap"]), "detail": f"${monthly_committed + request.amount:.2f} vs ${float(settings['monthly_cap']):.2f} monthly cap, including existing commitments."},
         {"name": "max_item_price", "passed": request.amount <= float(settings["max_item_price"]), "detail": f"${request.amount:.2f} vs ${float(settings['max_item_price']):.2f} item ceiling."},
         {"name": "currency", "passed": request.currency.upper() == "USD" and settings.get("currency") == "USD", "detail": "USD-only settlement policy."},
         {"name": "restricted_category", "passed": request.category.strip().lower() not in restricted, "detail": "Category is permitted." if request.category.strip().lower() not in restricted else f"{request.category} is a restricted category."},
-        {"name": "merchant_allowlist", "passed": not allowlist or not merchant or merchant.lower() in allowlist, "detail": "Merchant is permitted." if (not allowlist or not merchant or merchant.lower() in allowlist) else f"{merchant} is not on the merchant allowlist."},
+        {"name": "merchant_allowlist", "passed": merchant_allowed, "detail": "Merchant is permitted." if merchant_allowed else (f"{merchant} is not on the merchant allowlist." if merchant else "A merchant is required when an allowlist is configured.")},
         {"name": "human_approval", "passed": False, "detail": "Human approval remains mandatory before payment."},
     ]
     passed = all(check["passed"] for check in checks if check["name"] != "human_approval")
@@ -166,7 +170,7 @@ async def decision_proofs() -> list[dict]:
 async def approve_decision(decision_id: str) -> dict:
     proof = approve_proof(decision_id)
     if not proof:
-        raise HTTPException(status_code=409, detail="Decision Proof is missing, blocked, or already processed")
+        raise HTTPException(status_code=409, detail="Decision Proof is missing, blocked, already processed, outside the monthly cap, or failed integrity verification")
     record_policy_event("approval", "approved", amount=float(proof["optimization"]["total"]), detail="Human supervisor approved the Decision Proof.", context=decision_id)
     return {"decision_id": decision_id, "status": "approved", "approved_at": proof["approved_at"]}
 
@@ -185,8 +189,13 @@ async def paypal_order(decision_id: str) -> dict:
     proof = get_proof(decision_id)
     if not proof or proof.get("status") != "approved":
         raise HTTPException(status_code=409, detail="Human approval is required before creating a PayPal order")
+    if not proof.get("integrity_hash") or proof_hash(proof) != proof["integrity_hash"]:
+        raise HTTPException(status_code=409, detail="Decision Proof integrity verification failed")
+    currency = str(proof["requirements"]["currency"]).upper()
+    if currency != "USD":
+        raise HTTPException(status_code=409, detail="OmniBuy only permits USD PayPal orders")
     try:
-        order = await create_order(decision_id, proof["optimization"]["total"], proof["requirements"]["currency"])
+        order = await create_order(decision_id, proof["optimization"]["total"], currency)
     except PayPalError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
     order_id = order.get("id")
@@ -203,16 +212,39 @@ async def paypal_capture(order_id: str) -> dict:
         raise HTTPException(status_code=404, detail="PayPal order is not linked to any Decision Proof")
     if existing.get("status") != "checkout_pending":
         raise HTTPException(status_code=409, detail="PayPal order is not awaiting capture")
+    if not existing.get("integrity_hash") or proof_hash(existing) != existing["integrity_hash"]:
+        raise HTTPException(status_code=409, detail="Decision Proof integrity verification failed")
     try:
         result = await capture_order(order_id)
     except PayPalError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
     if result.get("status") != "COMPLETED":
         raise HTTPException(status_code=502, detail="PayPal did not return a completed capture")
-    captures = result.get("purchase_units", [])
-    capture_id = captures[0].get("payments", {}).get("captures", [{}])[0].get("id") if captures else None
+
+    decision_id = existing["decision_id"]
+    purchase_units = result.get("purchase_units", [])
+    unit = next((item for item in purchase_units if decision_id in (item.get("reference_id"), item.get("custom_id"))), None)
+    if not unit:
+        raise HTTPException(status_code=502, detail="PayPal capture does not match the Decision Proof")
+    captures = unit.get("payments", {}).get("captures", [])
+    expected_total = Decimal(str(existing["optimization"]["total"]))
+    capture = None
+    for candidate in captures:
+        try:
+            amount = candidate.get("amount", {})
+            if candidate.get("status") == "COMPLETED" and amount.get("currency_code") == "USD" and Decimal(str(amount.get("value"))) == expected_total:
+                capture = candidate
+                break
+        except (InvalidOperation, TypeError, ValueError):
+            continue
+    if not capture:
+        raise HTTPException(status_code=502, detail="PayPal capture status, currency, or amount does not match the Decision Proof")
+    capture_id = capture.get("id")
+    if not capture_id:
+        raise HTTPException(status_code=502, detail="PayPal completed capture is missing its capture ID")
+
     captured = record_paypal_capture(order_id, capture_id)
-    if not capture_id or not captured:
+    if not captured:
         raise HTTPException(status_code=409, detail="PayPal order is unknown or is not awaiting capture")
     record_policy_event("paypal_capture", "completed", amount=float(captured["optimization"]["total"]), detail=f"PayPal capture {capture_id} completed and persisted.", context=captured["decision_id"])
-    return {"paypal_order_id": order_id, "paypal_capture_id": capture_id, "status": result.get("status"), "capture": captures}
+    return {"paypal_order_id": order_id, "paypal_capture_id": capture_id, "status": result.get("status"), "capture": [unit]}

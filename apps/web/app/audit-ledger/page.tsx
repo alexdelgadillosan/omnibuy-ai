@@ -56,9 +56,9 @@ export default function AuditLedger() {
     <div className="content ledger-page">
       <div className="dp-list-head">
         <div>
-          <label>IMMUTABLE AUDIT TRAIL</label>
+          <label>AUDIT TRAIL</label>
           <h1>Transactions &amp; Audit History</h1>
-          <p>Every proposal, approval, PayPal order, capture and policy evaluation is persisted server-side with its Decision Proof reference.</p>
+          <p>Proposals, approvals, PayPal orders, captures and policy evaluations are persisted server-side and reference their Decision Proof where applicable.</p>
         </div>
         <button className="al-export" onClick={exportCsv} disabled={items.length === 0}>Export ledger CSV</button>
       </div>

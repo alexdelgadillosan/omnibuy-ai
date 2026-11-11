@@ -23,13 +23,14 @@ export default function Layout({ children }: Readonly<{ children: React.ReactNod
           <label htmlFor="nav-toggle" className="nav-close" aria-label="Close navigation">✕</label>
           <Link href="/" className="logo"><span>✦</span> Omni<span>Buy</span> <small>AI</small></Link>
           <p className="version">AGENTIC SPEND ENGINE V2.4</p>
-          <Link href="/workspace" className="deploy-agent"><b>✦</b> Deploy Agent</Link>
           <SidebarNav />
           <div className="sidebar-bottom">
             <Link href="/audit-ledger">🛡 <span>Security Telemetry</span></Link>
             <Link href="/policy-guard">⚙ <span>Terminal Settings</span></Link>
-            <div className="user"><b>A</b><span>Alex Delgadillo<small>Chief Financial Controller · L4</small></span></div>
           </div>
+          <a className="site-credit" href="https://alexdelgadillo.dev" target="_blank" rel="noopener noreferrer">
+            made with 🖤 by <strong>AlexDelgadillo</strong>
+          </a>
         </aside>
         <main className="main">
           <TopBar />
