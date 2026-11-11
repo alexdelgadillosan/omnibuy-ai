@@ -85,6 +85,41 @@ Any failed check produces a `blocked` proof. A blocked or rejected proof cannot
 create a PayPal order. A proof that already has an order cannot create a second
 one, and a capture can only happen once.
 
+### Enforcement invariants (server-side, tested)
+
+- **Monthly cap covers committed spend.** Simulation and the final approval
+  path both compare the requested total against the cap *including* totals of
+  proofs already awaiting capture, not just captured spend.
+- **Approval rechecks capacity transactionally.** `approve` runs under
+  `BEGIN IMMEDIATE` with a conditional `UPDATE`; approving a proof whose
+  committed total would exceed the monthly cap fails instead of releasing the
+  payment token.
+- **Allowlists intersect, never union.** The effective merchant allowlist is
+  the intersection of the persisted server list and any request-level list, so
+  a client cannot widen enforcement by naming extra merchants.
+- **USD-only is double-gated.** Policy engine checks the proof currency, and
+  the PayPal integration refuses to create non-USD orders regardless of what
+  the caller sends.
+- **Capture is verified against its proof.** Before persisting, the API checks
+  the PayPal purchase-unit reference/custom-id still points at the approved
+  proof, the inner capture status is `COMPLETED`, the currency is USD, the
+  amount matches the proof total exactly, and the capture ID is non-empty.
+  A mismatching or incomplete capture is never written to the ledger.
+- **Rejection locks payment out.** Rejecting stamps `rejected_at` and never
+  `approved_at`; payment status transitions are conditional updates, so a
+  rejected or blocked proof cannot be moved to `approved` afterwards.
+
+## Code-structure audit (graphify)
+
+A static dependency graph of `apps/` was generated with graphify from commit
+`ad41f08` (257 nodes, 590 edges, 13 communities; no import cycles detected).
+The hub analysis matches the intended architecture: the most-connected nodes
+are the domain types (`PurchaseRequest`, `Product`, `OptimizationResult`) and
+the enforcement core (`verify_policy()`, `PolicyGuard`), not the LLM or UI
+layers — policy verification is the center of gravity of the codebase, which
+is exactly the property this project claims. No circular imports exist between
+the workflow, policy, persistence, and integration modules.
+
 ## Integrity model
 
 `integrity_hash` is SHA-256 over the immutable decision fields: requirements,
@@ -117,14 +152,16 @@ not configured; it returns an explicit configuration error instead.
 ### Tests and type checks
 
 ```bash
-.venv/bin/pytest -q                 # 16 passed
+.venv/bin/pytest -q                 # 19 passed
 cd apps/web && npm run typecheck    # no errors
 ```
 
 Coverage includes optimizer budget/category behavior, policy persistence and
-reset, allowlist/category/cap enforcement, USD-only enforcement, proof integrity
-tampering, mandatory approval, single-order and single-capture guards, rejection
-lockout, policy API validation, and scenarios B and C.
+reset, allowlist/category/cap enforcement (including committed monthly totals
+and request-level allowlist widening), USD-only enforcement, proof integrity
+tampering, mandatory approval, single-order and single-capture guards, capture
+mismatch and tampered-approval rejection, rejection lockout and timestamp
+correctness, policy API validation, and scenarios B and C.
 
 ## Deployment
 
