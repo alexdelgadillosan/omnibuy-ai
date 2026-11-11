@@ -23,7 +23,7 @@ type Product = {
 
 export default function Workspace() {
   const [request, setRequest] = useState("");
-  const [budget, setBudget] = useState("900");
+  const [budget, setBudget] = useState("");
   const [objective, setObjective] = useState("best_value");
   const [proof, setProof] = useState<any>(null);
   const [error, setError] = useState("");
@@ -34,14 +34,14 @@ export default function Workspace() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setRequest(params.get("request") || "");
-    setBudget(params.get("budget") || "900");
+    setBudget(params.get("budget") || "");
     setObjective(params.get("objective") || "best_value");
   }, []);
 
   async function run() {
-    const budgetNumber = Number(budget);
-    if (!Number.isFinite(budgetNumber) || budgetNumber <= 0) {
-      setError("Enter a maximum budget greater than zero.");
+    const budgetText = budget.trim();
+    if (budgetText && (!Number.isFinite(Number(budgetText)) || Number(budgetText) <= 0)) {
+      setError("Enter a maximum budget greater than zero, or leave it empty so the agent parses it from your request.");
       return;
     }
     setLoading(true);
@@ -53,7 +53,7 @@ export default function Workspace() {
       const response = await fetch(`${API}/api/proposals`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ request, budget, currency: "USD", objective }),
+        body: JSON.stringify({ request, ...(budgetText ? { budget: budgetText } : {}), currency: "USD", objective }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || "The proposal could not be created.");
@@ -90,8 +90,10 @@ export default function Workspace() {
   const blocked = status === "blocked";
   const approveLink = paypal?.links?.find((link: any) => link.rel === "approve")?.href;
 
+  const intentEvent = proof?.workflow_events?.find((event: any) => event.type === "intent_parsed");
+
   const stages = [
-    { title: "Understanding requirements", detail: request.trim() || "Waiting for a shopping request", state: proof ? "done" : loading ? "active" : "idle" },
+    { title: "Understanding requirements", detail: proof ? (intentEvent?.source === "llm" ? "Intent parsed from natural language (LLM)" : request.trim() || "Requirements recorded verbatim") : request.trim() || "Waiting for a shopping request", state: proof ? "done" : loading ? "active" : "idle" },
     { title: "Discovering products", detail: proof ? `${proof.evaluated_candidates} candidates evaluated on Channel3` : "Verified merchant catalog", state: proof ? "done" : loading ? "active" : "idle" },
     { title: "Comparing alternatives", detail: proof ? `${proof.alternatives?.length || 0} alternative bundles computed` : "Pareto comparison", state: proof ? "done" : "idle" },
     { title: "Optimizing combinations", detail: proof ? `${usd(proof.optimization.total)} optimized total` : "Deterministic optimizer", state: proof ? "done" : "idle" },
@@ -125,7 +127,7 @@ export default function Workspace() {
             ))}
           </div>
           <div className="ws-activity-foot">
-            <span>Engine v2.4 · LangGraph</span>
+            <span>LangGraph · deterministic engine</span>
             <span>{proof ? "Deterministic run" : "Standing by"}</span>
           </div>
         </aside>
@@ -135,7 +137,7 @@ export default function Workspace() {
             <div className="ws-card-head"><label>USER INTENT</label><span>{objective.replaceAll("_", " ").toUpperCase()}</span></div>
             <textarea value={request} onChange={(event) => setRequest(event.target.value)} placeholder="Equip a two-person home office with ergonomic products..." />
             <div className="ws-fields">
-              <label><span>MAXIMUM BUDGET</span><div className="ws-input"><b>$</b><input value={budget} onChange={(event) => setBudget(event.target.value)} inputMode="decimal" /><i>USD</i></div></label>
+              <label><span>MAXIMUM BUDGET</span><div className="ws-input"><b>$</b><input value={budget} onChange={(event) => setBudget(event.target.value)} inputMode="decimal" placeholder="Auto — parsed from request" /><i>USD</i></div></label>
               <label><span>OBJECTIVE</span><select value={objective} onChange={(event) => setObjective(event.target.value)}><option value="best_value">Best overall value</option><option value="lowest_cost">Lowest cost</option><option value="highest_quality">Highest quality</option></select></label>
             </div>
             <button className="run" onClick={run} disabled={loading || request.trim().length < 3}>

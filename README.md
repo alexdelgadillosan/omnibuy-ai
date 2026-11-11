@@ -38,6 +38,7 @@ apps/api   FastAPI, Pydantic v2, SQLAlchemy + SQLite, LangGraph workflow
 
 | Concern | Implementation |
 | --- | --- |
+| Intent parsing | LLM-assisted natural-language parsing of budget, per-item cap, objective and merchant restrictions, with a fail-safe fallback to the persisted policy cap; extracted fields are recorded on the Decision Proof and can never override explicitly provided values or the USD-only invariant |
 | Discovery | `POST https://api.trychannel3.com/v1/search` with `x-api-key`; 20 live offers with prices, merchants, images, links and buyer ratings |
 | Optimization | Deterministic combination search over decimal money; budgets, required categories, item ceiling, and three objectives: `lowest_cost`, `best_value`, `highest_quality` |
 | Quality score | Bayesian-shrunk Channel3 buyer ratings: `(rating/5*100*count + 70*5) / (count+5)`; unrated products use the neutral prior `70` |
@@ -152,7 +153,7 @@ not configured; it returns an explicit configuration error instead.
 ### Tests and type checks
 
 ```bash
-.venv/bin/pytest -q                 # 47 passed
+.venv/bin/pytest -q                 # 61 passed
 cd apps/web && npm run test         # 21 passed (Vitest + Testing Library)
 cd apps/web && npm run typecheck    # no errors
 ```
@@ -166,7 +167,9 @@ tampered-approval rejection, rejection lockout and timestamp correctness,
 policy API validation, health/discovery/proposal route surfaces, event
 recording and clamping, PayPal OAuth + order/capture payload construction and
 error mapping, Channel3 offer parsing (Bayesian quality shrink, malformed-item
-tolerance), workflow stage events, and proof-hash determinism.
+tolerance), LLM intent parsing (normalization, fail-safe fallback, no-currency
+override, merge precedence), workflow stage events, and proof-hash
+determinism.
 
 Frontend coverage: shared formatting helpers (`usd`, RFC 4180 CSV escaping,
 CSV download), sidebar navigation and routes, top-bar search handoff, theme

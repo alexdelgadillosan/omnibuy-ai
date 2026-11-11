@@ -209,7 +209,7 @@ def test_workflow_runs_all_stages_and_reports_events(database):
     assert state["optimization"].missing_categories == []
     assert verify_policy(request, state["optimization"]).passed is True
     assert [event["type"] for event in state["events"]] == [
-        "intent_parsed",
+        "intent_received",
         "products_found",
         "optimization_completed",
         "policy_passed",

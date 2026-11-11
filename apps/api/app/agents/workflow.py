@@ -14,7 +14,7 @@ class WorkflowState(TypedDict, total=False):
 
 
 def parse_intent(state: WorkflowState) -> WorkflowState:
-    return {"events": [{"type": "intent_parsed", "state": "IDLE"}]}
+    return {"events": state.get("events", []) + [{"type": "intent_received", "state": "IDLE"}]}
 
 
 def discover(state: WorkflowState) -> WorkflowState:
@@ -44,5 +44,5 @@ graph.add_edge("verify", END)
 compiled_workflow = graph.compile()
 
 
-def run_workflow(request: PurchaseRequest, candidates: list[Product]) -> WorkflowState:
-    return compiled_workflow.invoke({"request": request, "candidates": candidates, "events": []})
+def run_workflow(request: PurchaseRequest, candidates: list[Product], pre_events: list[dict] | None = None) -> WorkflowState:
+    return compiled_workflow.invoke({"request": request, "candidates": candidates, "events": list(pre_events or [])})

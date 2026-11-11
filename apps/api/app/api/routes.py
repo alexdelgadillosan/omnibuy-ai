@@ -1,11 +1,12 @@
 from decimal import Decimal, InvalidOperation
 from typing import Literal
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 from app.integrations.channel3 import DiscoveryUnavailable, search_channel3
 from app.agents.workflow import run_workflow
 from app.policies.engine import verify_policy
 from app.schemas.products import Product, PurchaseRequest
+from app.services.intent import parse_intent_with_llm
 from app.services.proof import create_decision_proof, proof_hash
 from app.persistence.db import (
     DEFAULT_POLICY,
@@ -30,6 +31,8 @@ router = APIRouter(prefix="/api")
 
 
 class ProposalInput(PurchaseRequest):
+    budget: Decimal | None = Field(default=None, gt=0, le=100000)  # None → parsed from text
+    objective: Literal["lowest_cost", "best_value", "highest_quality"] | None = None  # None → parsed from text or best_value
     candidates: list[Product] | None = Field(default=None, max_length=100)
 
 
@@ -122,17 +125,66 @@ async def create_proposal(request: ProposalInput) -> dict:
         raise HTTPException(status_code=503, detail=str(error)) from error
     except Exception as error:
         raise HTTPException(status_code=502, detail=f"Product discovery failed: {error}") from error
-    workflow = run_workflow(request, candidates)
+
+    # LLM-assisted intent parsing. Explicit client fields always win; the LLM
+    # only fills unset budget/item-cap and empty category/merchant lists, and
+    # can never touch the currency (USD-only is a server-side invariant).
+    fields = request.model_dump()
+    try:
+        llm_fields = await parse_intent_with_llm(request.request)
+    except Exception:
+        llm_fields = {}
+    fillable_when_unset = {"budget", "max_price_per_item", "objective"}
+    # Product categories are deliberately NOT auto-filled: LLM-extracted
+    # categories rarely match the Channel3 taxonomy and would block valid carts.
+    fillable_when_empty = {"allowed_merchants"}
+    filled = {
+        key: value
+        for key, value in llm_fields.items()
+        if (key in fillable_when_unset and fields.get(key) is None) or (key in fillable_when_empty and not fields.get(key))
+    }
+    source = "llm" if filled else None
+    fields.update(filled)
+    intent_events = []
+
+    if fields.get("budget") is None:
+        # No budget given and the LLM could not extract one: fall back to the
+        # persisted policy session cap instead of failing the request.
+        fields["budget"] = str(get_policy_settings()["budget_cap"])
+        if source is None:
+            source = "fallback"
+    if fields.get("objective") is None:
+        fields["objective"] = "best_value"
+    try:
+        merged_request = PurchaseRequest(**fields)
+    except ValidationError:
+        # LLM output that survives normalization but not schema validation is
+        # discarded entirely; the explicit client fields remain authoritative.
+        for key in filled:
+            fields.pop(key, None)
+        if fields.get("budget") is None:
+            fields["budget"] = str(get_policy_settings()["budget_cap"])
+        if fields.get("objective") is None:
+            fields["objective"] = "best_value"
+        if source is None:
+            source = "fallback" if filled else None
+        merged_request = PurchaseRequest(**fields)
+    intent_events.append({"type": "intent_parsed", "state": "PARSING_INTENT", "source": source or "explicit", "extracted": filled})
+
+    workflow = run_workflow(merged_request, candidates, pre_events=intent_events)
     result = workflow["optimization"]
     policy = workflow["policy"]
-    proof = create_decision_proof(request, result, policy, get_policy_settings())
+    proof = create_decision_proof(merged_request, result, policy, get_policy_settings())
     proof["workflow_events"] = workflow["events"]
     save_proof(proof)
+    detail = "Proposal passed the deterministic policy matrix." if policy.passed else "; ".join(check.detail for check in policy.checks if not check.passed)
+    if source == "llm":
+        detail = f"Intent parsed by LLM ({', '.join(sorted(filled))}). " + detail
     record_policy_event(
         "proposal",
         "awaiting_approval" if policy.passed else "blocked",
         amount=float(result.total),
-        detail="Proposal passed the deterministic policy matrix." if policy.passed else "; ".join(check.detail for check in policy.checks if not check.passed),
+        detail=detail,
         context=request.request[:160],
     )
     return {"proof": proof, "state": "AWAITING_APPROVAL" if policy.passed else "BLOCKED"}

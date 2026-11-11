@@ -12,3 +12,16 @@ def database(tmp_path, monkeypatch):
     db.init_db()
     yield db
     engine.dispose()
+
+
+@pytest.fixture
+def no_intent_llm(monkeypatch):
+    """Keep proposal tests deterministic: LLM intent parsing disabled unless a
+    test explicitly overrides it (see test_intent_parsing.py)."""
+    from app.api import routes
+
+    async def no_llm(text):
+        return {}
+
+    monkeypatch.setattr(routes, "parse_intent_with_llm", no_llm)
+    return no_llm

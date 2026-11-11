@@ -51,13 +51,18 @@ OmniBuy AI turns a natural-language request into a verified purchase:
   server-side capture.
 - **Safety:** the optimizer and policy engine are deterministic and independent of
   the LLM. Product text is treated as untrusted input.
-- **Tests:** 68 tests, all passing — 47 pytest backend tests (policy
+- **Tests:** 82 tests, all passing — 61 pytest backend tests (policy
   persistence/enforcement, proof tampering, approval lockout, duplicate order
   prevention, single-capture semantics, capture-mismatch rejection, USD
-  double-gating, route surfaces, PayPal/Channel3 integration units, workflow
-  events, scenarios B/C) plus a 21-test Vitest + Testing Library suite for the
-  frontend (format helpers, navigation, search handoff, theme persistence, and
-  the Decision Proofs page).
+  double-gating, route surfaces, PayPal/Channel3 integration units, LLM intent
+  parsing with fail-safe fallback, workflow events, scenarios B/C) plus a
+  21-test Vitest + Testing Library suite for the frontend (format helpers,
+  navigation, search handoff, theme persistence, and the Decision Proofs
+  page).
+- **Intent parsing:** an OpenAI-compatible LLM extracts budget, objective and
+  merchant restrictions from free-text requests server-side, with a fail-safe
+  fallback to the persisted policy cap; extracted fields are recorded on the
+  Decision Proof and explicit client values always win.
 
 ## Real evidence
 

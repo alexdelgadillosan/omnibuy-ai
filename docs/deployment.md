@@ -26,12 +26,19 @@ Set these on `omnibuy-api` (secrets are never committed):
 | --- | --- |
 | `CHANNEL3_API_KEY` | Channel3 API key |
 | `CHANNEL3_BASE_URL` | `https://api.trychannel3.com/v1` |
+| `LLM_BASE_URL` | OpenAI-compatible base URL (e.g. `https://api.groq.com/openai/v1`) |
+| `LLM_API_KEY` | API key for the LLM used by natural-language intent parsing |
+| `LLM_MODEL` | e.g. `openai/gpt-oss-120b` |
 | `PAYPAL_CLIENT_ID` | PayPal Sandbox app client ID |
 | `PAYPAL_CLIENT_SECRET` | PayPal Sandbox app secret |
 | `PAYPAL_ENV` | `sandbox` |
 | `PAYPAL_BASE_URL` | `https://api-m.sandbox.paypal.com` |
 | `OMNIBUY_ALLOWED_ORIGINS` | Public URL of `omnibuy-web`, e.g. `https://omnibuy-web.onrender.com` |
 | `OMNIBUY_PUBLIC_URL` | Same public URL of `omnibuy-web` |
+
+`LLM_*` is optional at the infrastructure level but required for the
+natural-language intent parsing demo: without it, proposals still work but the
+budget falls back to the persisted policy session cap.
 
 `OMNIBUY_DATABASE_URL` is already set by the blueprint. Do not point it at a path
 outside `/var/data`, or data will be lost on redeploy.

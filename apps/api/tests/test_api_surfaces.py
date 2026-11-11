@@ -116,7 +116,7 @@ def test_discovery_generic_failure_returns_502(database, monkeypatch):
     assert "network down" in response.json()["detail"]
 
 
-def test_proposal_from_inline_candidates_creates_awaiting_proof(database):
+def test_proposal_from_inline_candidates_creates_awaiting_proof(database, no_intent_llm):
     response = client.post(
         "/api/proposals",
         json={"request": "buy a cable", "budget": 50, "candidates": [candidate("cable-1", "19.99")]},
@@ -133,7 +133,7 @@ def test_proposal_from_inline_candidates_creates_awaiting_proof(database):
     assert stored["integrity_verified"] is True
 
 
-def test_proposal_that_violates_policy_is_blocked_without_payment(database):
+def test_proposal_that_violates_policy_is_blocked_without_payment(database, no_intent_llm):
     response = client.post(
         "/api/proposals",
         json={"request": "buy a cable", "budget": 5, "candidates": [candidate("cable-1", "19.99")]},

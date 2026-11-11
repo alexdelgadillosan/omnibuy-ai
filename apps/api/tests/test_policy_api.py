@@ -68,7 +68,7 @@ def test_approval_cannot_be_disabled_through_the_api(database):
     assert response.status_code == 422
 
 
-def test_proposal_uses_live_policy_allowlist(database):
+def test_proposal_uses_live_policy_allowlist(database, no_intent_llm):
     client.put("/api/policy", json=payload(allowed_merchants=["Dell Direct"]))
     response = client.post("/api/proposals", json={
         "request": "buy a monitor",
@@ -84,7 +84,7 @@ def test_proposal_uses_live_policy_allowlist(database):
     assert any(check["name"] == "merchant_allowlist" and not check["passed"] for check in body["proof"]["policy"]["checks"])
 
 
-def test_scenario_b_over_budget_is_deterministically_blocked(database):
+def test_scenario_b_over_budget_is_deterministically_blocked(database, no_intent_llm):
     response = client.post("/api/proposals", json={
         "request": "buy a laptop under $20",
         "budget": 20,
@@ -98,7 +98,7 @@ def test_scenario_b_over_budget_is_deterministically_blocked(database):
     assert any(check["name"] == "non_empty_cart" and not check["passed"] for check in body["proof"]["policy"]["checks"])
 
 
-def test_scenario_c_reoptimization_changes_the_bundle(database):
+def test_scenario_c_reoptimization_changes_the_bundle(database, no_intent_llm):
     candidates = [candidate("cheap-camera", "20", 60, category="camera"), candidate("premium-camera", "80", 96, category="camera")]
     base = {"request": "buy a camera", "budget": 100, "candidates": candidates}
 
