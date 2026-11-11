@@ -28,6 +28,12 @@ services:
         value: sandbox
       - key: PAYPAL_BASE_URL
         value: https://api-m.sandbox.paypal.com
+      - key: LLM_BASE_URL
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        sync: false
       - key: OMNIBUY_ALLOWED_ORIGINS
         sync: false
       - key: OMNIBUY_PUBLIC_URL
