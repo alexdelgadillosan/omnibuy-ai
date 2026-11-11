@@ -761,3 +761,14 @@ header{font-size:14px}
 .proof-numbers small{font-size:11px}
 .timeline b{font-size:13px}
 .timeline small{font-size:12px}
+
+/* Readability pass 4: larger top bar */
+header{height:76px}
+.topbar .search{padding:9px 12px;border-radius:7px}
+.topbar .search input{font-size:13px}
+.topbar .search>span{font-size:13px}
+.search kbd{font-size:11px;padding:3px 7px}
+.top-status{font-size:13px}
+.top-icon{width:32px;height:32px;border-radius:7px;font-size:14px}
+.top-icon i{min-width:16px;height:16px;border-radius:8px;font-size:9.5px;top:-6px;right:-6px}
+.override{font-size:11px;padding:8px 11px;border-radius:6px}
