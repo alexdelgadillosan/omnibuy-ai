@@ -2,20 +2,16 @@ services:
   - type: web
     name: omnibuy-api
     runtime: python
-    plan: starter
+    plan: free
     region: oregon
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --app-dir apps/api --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
-    disk:
-      name: omnibuy-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.7
       - key: OMNIBUY_DATABASE_URL
-        value: sqlite:////var/data/omnibuy.db
+        value: sqlite:////tmp/omnibuy.db
       - key: CHANNEL3_API_KEY
         sync: false
       - key: CHANNEL3_BASE_URL
@@ -42,7 +38,7 @@ services:
   - type: web
     name: omnibuy-web
     runtime: node
-    plan: starter
+    plan: free
     region: oregon
     rootDir: apps/web
     buildCommand: npm ci && npm run build

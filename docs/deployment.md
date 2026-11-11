@@ -7,9 +7,11 @@ OmniBuy AI deploys as two Render web services driven by [`render.yaml`](../rende
 | `omnibuy-api` | Python 3.12 | repo root | `uvicorn app.main:app --app-dir apps/api --host 0.0.0.0 --port $PORT` |
 | `omnibuy-web` | Node 22 | `apps/web` | `npm run start -- -p $PORT` |
 
-The API service mounts a 1 GB persistent disk at `/var/data` and stores SQLite at
-`sqlite:////var/data/omnibuy.db`. Decision Proofs, approvals, orders, captures and
-policy events therefore survive restarts and redeploys.
+The current blueprint uses `plan: free` for both services and stores SQLite at
+`sqlite:////tmp/omnibuy.db`. Data is ephemeral: Decision Proofs, approvals and
+policy events reset on restart or redeploy. For a persistent disk, switch to
+`plan: starter` and mount `/var/data` (Render requires payment information on
+file for paid instances).
 
 ## 1. Create the services
 
@@ -70,11 +72,12 @@ Create the PayPal Sandbox order from the deployed app so the return URL is based
 on `OMNIBUY_PUBLIC_URL`. If you change the web hostname, restart the API service
 so the cached settings are reloaded.
 
-## Free-tier alternative
+## Free-tier caveats
 
-`plan: starter` is required for the persistent disk. With `plan: free`, remove
-the `disk` block and accept that SQLite (and therefore the audit trail) resets on
-every restart or deploy.
+The deployed blueprint uses `plan: free`: services spin down after ~15 minutes
+of inactivity (first request after that takes ~50 seconds) and SQLite data
+resets on restart or redeploy. Acceptable for the hackathon demo; switch to
+`plan: starter` with a persistent disk for production.
 
 ## Security notes
 
