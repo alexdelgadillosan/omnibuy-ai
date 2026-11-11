@@ -684,3 +684,80 @@ header{font-size:13px}
 .policy-command h1{font-size:32px}
 .policy-command p{font-size:13px}
 .policy-security b{font-size:13px}
+
+/* Readability pass 3: one more notch up for center content */
+body{font-size:16px}
+header{font-size:14px}
+.ws-breadcrumb,.dp-list-head label,.dp-eyebrow,.co-head label,.ws-card-head label,.ws-alternatives>label,.ws-tally>label,.ws-policy>label,.dp-list-metrics span,.dp-titlebar label,.dp-immutable{font-size:11.5px}
+.ws-head p,.dp-list-head p,.dp-hero p,.co-head p,.workspace-head p,.placeholder>p,.policy-command p{font-size:14px}
+.ws-step b{font-size:13px}
+.ws-step small{font-size:11.5px}
+.ws-intent textarea{font-size:14.5px}
+.ws-input input{font-size:14px}
+.ws-fields select{font-size:12.5px}
+.ws-bundle-copy{font-size:12.5px}
+.ws-empty b{font-size:14px}
+.ws-empty p{font-size:12.5px}
+.ws-product-copy small,.ws-product-copy span{font-size:10.5px}
+.ws-product-copy b{font-size:13px}
+.ws-product-price strong{font-size:14px}
+.ws-product-price a{font-size:10.5px}
+.ws-budget-row,.ws-tally>div,.ws-policy>div{font-size:11.5px}
+.ws-tally-total b{font-size:13px!important}
+.ws-opt-empty b{font-size:13px}
+.ws-opt-empty p{font-size:12px}
+.dp-row-main b{font-size:13.5px}
+.dp-row-main small{font-size:10.5px}
+.dp-row-metric span{font-size:10px}
+.dp-row-metric b{font-size:12.5px}
+.dp-integrity{font-size:10.5px}
+.dp-row>a{font-size:11.5px}
+.dp-hero-stats small{font-size:10px}
+.dp-hero-stats code,.dp-hero-stats b{font-size:11.5px}
+.dp-titlebar h2{font-size:19px}
+.dp-titlebar p{font-size:11.5px}
+.dp-check-head{font-size:10px}
+.dp-check p{font-size:10.5px}
+.dp-node-body b{font-size:12.5px}
+.dp-node-body small{font-size:10.5px}
+.dp-node-ref code{font-size:10px}
+.dp-node-ref em{font-size:9.5px}
+.dp-table{font-size:11px}
+.dp-product-copy small,.dp-product-copy span{font-size:10.5px}
+.dp-product-copy b{font-size:13px}
+.dp-product-price strong{font-size:14px}
+.dp-rationale p{font-size:13px}
+.dp-hash{font-size:10.5px!important}
+.dp-alt-link{font-size:11.5px}
+.al-table{font-size:11.5px}
+.al-code{font-size:10.5px}
+.al-event{font-size:11px}
+.al-event b{font-size:12px}
+.al-event small{font-size:10.5px}
+.co-step b{font-size:12px}
+.co-step em{font-size:10px}
+.co-step small{font-size:9.5px}
+.co-result b{font-size:15px}
+.co-result p{font-size:13px}
+.co-result code{font-size:11px}
+.co-guarantee b{font-size:12.5px}
+.co-guarantee small{font-size:11px}
+.policy-block p,.policy-row p{font-size:13px}
+.policy-check-list li{font-size:11.5px}
+.policy-log-row{font-size:11px}
+.policy-meta-row,.policy-savebar{font-size:11.5px}
+.policy-sim-ready>p{font-size:12px}
+.policy-fields select,.policy-fields>label>input{font-size:12px}
+.row,.muted,.fact,.side-line,.checks div,.proof-checks>div,.proof-checks b,.workspace-product b,.product-list b{font-size:14px}
+.workspace-product small,.product-list small,.proof-checks small{font-size:12px}
+.workspace-product strong,.product-card-body>a{font-size:12px}
+.alternative,.proof-card>p{font-size:13px}
+.ledger article{font-size:14px}
+.ledger article small{font-size:12px}
+.product-card h3{font-size:14px;height:40px}
+.product-card-body>small{font-size:11px}
+.guard-list p{font-size:14px}
+.hero>p{font-size:15px}
+.proof-numbers small{font-size:11px}
+.timeline b{font-size:13px}
+.timeline small{font-size:12px}
