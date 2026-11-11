@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { downloadTextFile, toCsv, usd } from "@/lib/format";
 import { useEffect, useState } from "react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const usd = (value: number | string) =>
-  `$${Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 type Event = {
   event_id: string;
@@ -37,19 +36,19 @@ export default function AuditLedger() {
   const captured = items.reduce((total, item) => total + (item.paypal_capture_id ? Number(item.optimization?.total || 0) : 0), 0);
 
   function exportCsv() {
-    const header = "decision_id,status,total,currency,paypal_order_id,paypal_capture_id,created_at";
-    const rows = items.map((item) =>
-      [item.decision_id, item.status, item.optimization?.total, item.requirements?.currency, item.paypal_order_id || "", item.paypal_capture_id || "", item.created_at]
-        .map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`)
-        .join(","),
+    const csv = toCsv(
+      ["decision_id", "status", "total", "currency", "paypal_order_id", "paypal_capture_id", "created_at"],
+      items.map((item) => [
+        item.decision_id,
+        item.status,
+        item.optimization?.total,
+        item.requirements?.currency,
+        item.paypal_order_id || "",
+        item.paypal_capture_id || "",
+        item.created_at,
+      ]),
     );
-    const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "omnibuy-audit-ledger.csv";
-    anchor.click();
-    URL.revokeObjectURL(url);
+    downloadTextFile("omnibuy-audit-ledger.csv", csv);
   }
 
   return (

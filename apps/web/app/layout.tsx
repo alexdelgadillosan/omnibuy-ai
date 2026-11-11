@@ -22,7 +22,7 @@ export default function Layout({ children }: Readonly<{ children: React.ReactNod
         <aside className="sidebar">
           <label htmlFor="nav-toggle" className="nav-close" aria-label="Close navigation">✕</label>
           <Link href="/" className="logo"><span>✦</span> Omni<span>Buy</span> <small>AI</small></Link>
-          <p className="version">AGENTIC SPEND ENGINE V2.4</p>
+          <p className="version">AGENTIC SPEND ENGINE</p>
           <SidebarNav />
           <div className="sidebar-bottom">
             <Link href="/audit-ledger">🛡 <span>Security Telemetry</span></Link>

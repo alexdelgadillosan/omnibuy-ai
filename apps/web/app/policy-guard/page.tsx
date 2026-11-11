@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usd } from "@/lib/format";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -41,8 +42,6 @@ type Simulation = {
   settings: Policy;
 };
 
-const usd = (value: number) =>
-  `$${Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function apiError(data: { detail?: unknown }, fallback: string) {
   if (typeof data.detail === "string") return data.detail;

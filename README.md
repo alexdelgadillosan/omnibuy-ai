@@ -152,16 +152,27 @@ not configured; it returns an explicit configuration error instead.
 ### Tests and type checks
 
 ```bash
-.venv/bin/pytest -q                 # 19 passed
+.venv/bin/pytest -q                 # 47 passed
+cd apps/web && npm run test         # 21 passed (Vitest + Testing Library)
 cd apps/web && npm run typecheck    # no errors
 ```
 
-Coverage includes optimizer budget/category behavior, policy persistence and
+Backend coverage: optimizer budget/category behavior, policy persistence and
 reset, allowlist/category/cap enforcement (including committed monthly totals
-and request-level allowlist widening), USD-only enforcement, proof integrity
-tampering, mandatory approval, single-order and single-capture guards, capture
-mismatch and tampered-approval rejection, rejection lockout and timestamp
-correctness, policy API validation, and scenarios B and C.
+and request-level allowlist widening), USD-only enforcement (double-gated at
+policy and PayPal order creation), proof integrity tampering, mandatory
+approval, single-order and single-capture guards, capture mismatch and
+tampered-approval rejection, rejection lockout and timestamp correctness,
+policy API validation, health/discovery/proposal route surfaces, event
+recording and clamping, PayPal OAuth + order/capture payload construction and
+error mapping, Channel3 offer parsing (Bayesian quality shrink, malformed-item
+tolerance), workflow stage events, and proof-hash determinism.
+
+Frontend coverage: shared formatting helpers (`usd`, RFC 4180 CSV escaping,
+CSV download), sidebar navigation and routes, top-bar search handoff, theme
+toggle persistence, pending badge counting, and the Decision Proofs page
+(metrics, integrity badges, `?q=` filter handoff, live filtering, empty
+state, detail links, and API error surfacing).
 
 ## Deployment
 

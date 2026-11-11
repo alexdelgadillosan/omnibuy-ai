@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { usd } from "@/lib/format";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-const usd = (value: number | string) =>
-  `$${Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function ProofsPage() {
   return (
